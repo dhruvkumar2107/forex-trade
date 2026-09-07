@@ -50,8 +50,8 @@ model AuditLog {
   id            String   @id @default(uuid())
   clientId      String
   client        Client   @relation(fields: [clientId], references: [id])
-  action        String   // e.g. "view_credentials", "approve", "reject", "push_to_copy_trading"
-  performedBy   String   // admin user identifier
+  action        String
+  performedBy   String
   details       String?
   ipAddress     String?
 
@@ -67,7 +67,7 @@ model AdminUser {
   email         String   @unique
   name          String?
   passwordHash  String
-  role          String   @default("admin") // admin, staff, viewer
+  role          String   @default("admin")
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
   lastLoginAt   DateTime?
@@ -82,7 +82,7 @@ model OtpSession {
   id            String   @id @default(uuid())
   mobile        String
   code          String
-  purpose       String   @default("verification") // verification, login
+  purpose       String   @default("verification")
   attempts      Int      @default(0)
   verified      Boolean  @default(false)
   expiresAt     DateTime
@@ -98,4 +98,135 @@ model RateLimitEntry {
   createdAt DateTime @default(now())
 
   @@index([key, createdAt])
+}
+
+// ===== COPY TRADING MODELS =====
+
+enum CopyMode {
+  fixed_ratio
+  equity_proportional
+  fixed_lot
+}
+
+enum ConnectionHealth {
+  healthy
+  degraded
+  disconnected
+  error
+}
+
+enum TradeStatus {
+  open
+  closed
+  modified
+  error
+}
+
+model CopyTradingClient {
+  id                        String           @id @default(uuid())
+  clientRef                 String           @unique
+  mt5AccountNumber          String
+  brokerServer              String
+  mt5InvestorPasswordEnc    String
+  mt5InvestorPasswordIv     String
+  metaApiAccountId          String?
+  metaApiConnectionId       String?
+  copyMode                  CopyMode         @default(equity_proportional)
+  lotRatio                  Float            @default(1.0)
+  maxDrawdownPercent        Float            @default(20.0)
+  symbolWhitelist           String[]         @default(["XAUUSD", "BTCUSD", "EURUSD", "GBPUSD", "AUDUSD"])
+  isActive                  Boolean          @default(true)
+  isPaused                  Boolean          @default(false)
+  connectionHealth          ConnectionHealth @default(disconnected)
+  lastTradeSyncAt           DateTime?
+  lastHealthCheckAt         DateTime?
+  equityAtStart             Float?
+  currentEquity             Float?
+  totalPnL                  Float            @default(0)
+  tradesCopied              Int              @default(0)
+  tradeEvents               TradeEvent[]
+  clientConfigs             ClientConfigHistory[]
+  alerts                    CopyTradeAlert[]
+
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+
+  @@index([clientRef])
+  @@unique([mt5AccountNumber])
+  @@index([connectionHealth])
+  @@index([isActive])
+}
+
+model TradeEvent {
+  id                  String       @id @default(uuid())
+  clientId            String
+  client              CopyTradingClient @relation(fields: [clientId], references: [id])
+  masterTradeId       String
+  symbol              String
+  type                String
+  volume              Float
+  openPrice           Float
+  closePrice          Float?
+  sl                  Float?
+  tp                  Float?
+  profit              Float?
+  status              TradeStatus  @default(open)
+  executionLatencyMs  Int?
+  error               String?
+  metaApiTradeId      String?
+
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([clientId])
+  @@index([masterTradeId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ClientConfigHistory {
+  id            String   @id @default(uuid())
+  clientId      String
+  client        CopyTradingClient @relation(fields: [clientId], references: [id])
+  field         String
+  oldValue      String
+  newValue      String
+  changedBy     String
+
+  createdAt     DateTime @default(now())
+
+  @@index([clientId])
+}
+
+model CopyTradeAlert {
+  id            String   @id @default(uuid())
+  clientId      String
+  client        CopyTradingClient @relation(fields: [clientId], references: [id])
+  type          String
+  severity      String   @default("warning")
+  message       String
+  resolved      Boolean  @default(false)
+  resolvedAt    DateTime?
+
+  createdAt     DateTime @default(now())
+
+  @@index([clientId])
+  @@index([type])
+  @@index([resolved])
+}
+
+model MasterAccount {
+  id                String   @id @default(uuid())
+  metaApiAccountId  String   @unique
+  accountName       String
+  isActive          Boolean  @default(true)
+  currentEquity     Float?
+  currentBalance    Float?
+  openTrades        Int      @default(0)
+  todayPnL          Float    @default(0)
+  totalPnL          Float    @default(0)
+  lastSyncAt        DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }

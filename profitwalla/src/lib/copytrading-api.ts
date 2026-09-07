@@ -1,23 +1,35 @@
-import type { PushClientPayload } from './types';
+import { encrypt } from './encryption';
+import { prisma } from './prisma';
 
-const COPY_TRADING_API = process.env.COPY_TRADING_API_URL || 'http://localhost:3001';
 const API_SECRET = process.env.INTER_SYSTEM_API_SECRET;
 
-export async function pushClientToCopyTrading(payload: PushClientPayload): Promise<{ success: boolean; clientId?: string; error?: string }> {
-  const response = await fetch(`${COPY_TRADING_API}/api/clients/push`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-secret': API_SECRET || '',
-    },
-    body: JSON.stringify(payload),
-  });
+export async function pushClientToCopyTrading(payload: {
+  clientRef: string;
+  mt5AccountNumber: string;
+  brokerServer: string;
+  mt5InvestorPassword: string;
+  startingEquity: number;
+  fullName: string;
+}): Promise<{ success: boolean; clientId?: string; error?: string }> {
+  try {
+    const { encrypted, iv } = encrypt(payload.mt5InvestorPassword);
 
-  const result = await response.json();
+    const client = await prisma.copyTradingClient.create({
+      data: {
+        clientRef: payload.clientRef,
+        mt5AccountNumber: payload.mt5AccountNumber,
+        brokerServer: payload.brokerServer,
+        mt5InvestorPasswordEnc: encrypted,
+        mt5InvestorPasswordIv: iv,
+        equityAtStart: payload.startingEquity,
+        currentEquity: payload.startingEquity,
+        isActive: true,
+        connectionHealth: 'disconnected',
+      },
+    });
 
-  if (!response.ok) {
-    return { success: false, error: result.error || 'Failed to push client' };
+    return { success: true, clientId: client.id };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
   }
-
-  return { success: true, clientId: result.data?.id };
 }
