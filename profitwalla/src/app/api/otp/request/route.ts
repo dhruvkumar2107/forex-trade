@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       await prisma.otpSession.update({
         where: { id: existing.id },
-        update: { code, expiresAt, attempts: 0, verified: false },
+        data: { code, expiresAt, attempts: 0, verified: false },
       });
     } else {
       await prisma.otpSession.create({
