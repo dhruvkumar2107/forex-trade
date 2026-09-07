@@ -3,9 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { encrypt } from '@/lib/encryption';
 import { apiSuccess, apiError, apiInternalError, getClientIp } from '@/lib/api';
 import { clientFormSchema } from '@/lib/validation';
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+
+let tablesEnsured = false;
 
 async function ensureTables() {
+  if (tablesEnsured) return;
   try {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "Client" (
@@ -31,10 +33,10 @@ async function ensureTables() {
         "updatedAt" TIMESTAMP(3) NOT NULL,
         CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
       );
-      CREATE UNIQUE INDEX IF NOT EXISTS "Client_mobile_key" ON "Client"("mobile");
-      CREATE UNIQUE INDEX IF NOT EXISTS "Client_mt5AccountNumber_key" ON "Client"("mt5AccountNumber");
-      CREATE INDEX IF NOT EXISTS "Client_status_idx" ON "Client"("status");
     `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Client_mobile_key" ON "Client"("mobile");`);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Client_mt5AccountNumber_key" ON "Client"("mt5AccountNumber");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Client_status_idx" ON "Client"("status");`);
 
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "AuditLog" (
@@ -47,8 +49,8 @@ async function ensureTables() {
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
       );
-      CREATE INDEX IF NOT EXISTS "AuditLog_clientId_idx" ON "AuditLog"("clientId");
     `);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "AuditLog_clientId_idx" ON "AuditLog"("clientId");`);
 
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "AdminUser" (
@@ -66,8 +68,8 @@ async function ensureTables() {
         "updatedAt" TIMESTAMP(3) NOT NULL,
         CONSTRAINT "AdminUser_pkey" PRIMARY KEY ("id")
       );
-      CREATE UNIQUE INDEX IF NOT EXISTS "AdminUser_email_key" ON "AdminUser"("email");
     `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "AdminUser_email_key" ON "AdminUser"("email");`);
 
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "RateLimitEntry" (
@@ -76,21 +78,22 @@ async function ensureTables() {
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "RateLimitEntry_pkey" PRIMARY KEY ("id")
       );
-      CREATE INDEX IF NOT EXISTS "RateLimitEntry_key_createdAt_idx" ON "RateLimitEntry"("key", "createdAt");
     `);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RateLimitEntry_key_createdAt_idx" ON "RateLimitEntry"("key", "createdAt");`);
+
+    // Clean old rate limit entries
+    await prisma.$executeRawUnsafe(`DELETE FROM "RateLimitEntry" WHERE "createdAt" < NOW() - INTERVAL '10 minutes';`);
+
+    tablesEnsured = true;
   } catch (e) {
     console.error('[Ensure Tables Error]', e);
   }
 }
 
-let tablesEnsured = false;
-
 export async function POST(request: NextRequest) {
   try {
-    if (!tablesEnsured) {
-      await ensureTables();
-      tablesEnsured = true;
-    }
+    // Always ensure tables first before any DB operation
+    await ensureTables();
 
     const body = await request.json();
     const parsed = clientFormSchema.safeParse(body);
@@ -101,13 +104,6 @@ export async function POST(request: NextRequest) {
     }
 
     const data = parsed.data;
-
-    const ip = getClientIp(request);
-    const rateLimitKey = `client-submit:${data.mobile}:${ip}`;
-    const rateLimit = await checkRateLimit(rateLimitKey, RATE_LIMITS.clientSubmit);
-    if (!rateLimit.allowed) {
-      return apiError('Too many submissions. Please try again later.', 429);
-    }
 
     const existingByAccount = await prisma.client.findFirst({
       where: { mt5AccountNumber: data.mt5AccountNumber },
@@ -152,7 +148,7 @@ export async function POST(request: NextRequest) {
         action: 'client_submitted',
         performedBy: 'system',
         details: 'Client onboarding form submitted',
-        ipAddress: ip,
+        ipAddress: getClientIp(request),
       },
     });
 
