@@ -1,9 +1,14 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { apiSuccess, apiInternalError } from '@/lib/api';
+import { verifyInterSystemAuth } from '@/lib/api';
 import { metaApiService } from '@/lib/metaapi';
 
 export async function GET(request: NextRequest) {
+  if (!verifyInterSystemAuth(request)) {
+    return apiInternalError('Unauthorized');
+  }
+
   try {
     const clients = await prisma.copyTradingClient.findMany({
       where: { isActive: true },

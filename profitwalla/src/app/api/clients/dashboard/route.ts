@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { apiSuccess, apiError, apiInternalError } from '@/lib/api';
+import { apiSuccess, apiError, apiInternalError, verifyInterSystemAuth } from '@/lib/api';
 
 export async function GET(request: NextRequest) {
   try {

@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    // Create StaffUser table if it doesn't exist (raw SQL for shared DB)
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.SEED_SECRET}`) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "StaffUser" (
         "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
@@ -19,7 +23,6 @@ export async function POST() {
       CREATE UNIQUE INDEX IF NOT EXISTS "StaffUser_email_key" ON "StaffUser"("email");
     `);
 
-    // Create MasterAccount table if it doesn't exist
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "MasterAccount" (
         "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
@@ -63,7 +66,7 @@ export async function POST() {
       },
     });
 
-    return NextResponse.json({ success: true, message: 'Database seeded. Login: staff@copytrading.local / staff123' });
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
   }
