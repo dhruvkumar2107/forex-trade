@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     const ip = getClientIp(request);
     const rateLimitKey = `client-submit:${data.mobile}:${ip}`;
-    const rateLimit = checkRateLimit(rateLimitKey, RATE_LIMITS.clientSubmit);
+    const rateLimit = await checkRateLimit(rateLimitKey, RATE_LIMITS.clientSubmit);
     if (!rateLimit.allowed) {
       return apiError('Too many submissions. Please try again later.', 429);
     }

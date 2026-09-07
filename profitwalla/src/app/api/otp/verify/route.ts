@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const rateLimitKey = `otp-verify:${mobile}:${ip}`;
-    const rateLimit = checkRateLimit(rateLimitKey, RATE_LIMITS.otpVerify);
+    const rateLimit = await checkRateLimit(rateLimitKey, RATE_LIMITS.otpVerify);
     if (!rateLimit.allowed) {
       return apiError('Too many verification attempts. Please try again later.', 429);
     }

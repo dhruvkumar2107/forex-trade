@@ -43,7 +43,7 @@ model Client {
 
   @@index([status])
   @@index([mobile])
-  @@index([mt5AccountNumber])
+  @@unique([mt5AccountNumber])
 }
 
 model AuditLog {
@@ -71,6 +71,8 @@ model AdminUser {
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
   lastLoginAt   DateTime?
+  failedLoginAttempts Int @default(0)
+  lockedUntil   DateTime?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -88,4 +90,12 @@ model OtpSession {
   createdAt     DateTime @default(now())
 
   @@index([mobile])
+}
+
+model RateLimitEntry {
+  id        String   @id @default(uuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
 }

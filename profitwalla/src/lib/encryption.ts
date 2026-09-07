@@ -48,9 +48,8 @@ export function decrypt(encryptedHex: string, ivHex: string): string {
   return decrypted;
 }
 
-export function maskPassword(encrypted: string): string {
-  if (encrypted.length <= 4) return '****';
-  return '*'.repeat(encrypted.length - 2) + encrypted.slice(-2);
+export function maskPassword(_encrypted: string): string {
+  return '********';
 }
 
 export function hashForLog(value: string): string {

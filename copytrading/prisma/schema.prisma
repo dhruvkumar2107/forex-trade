@@ -57,7 +57,7 @@ model CopyTradingClient {
   updatedAt                 DateTime         @updatedAt
 
   @@index([clientRef])
-  @@index([mt5AccountNumber])
+  @@unique([mt5AccountNumber])
   @@index([connectionHealth])
   @@index([isActive])
 }

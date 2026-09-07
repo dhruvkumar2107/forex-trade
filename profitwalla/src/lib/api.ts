@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 export function apiSuccess(data: unknown, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
@@ -30,5 +31,11 @@ export function getClientIp(request: NextRequest): string {
 
 export function verifyInterSystemAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('x-api-secret');
-  return authHeader === process.env.INTER_SYSTEM_API_SECRET;
+  const secret = process.env.INTER_SYSTEM_API_SECRET;
+  if (!authHeader || !secret) return false;
+
+  const a = Buffer.from(authHeader);
+  const b = Buffer.from(secret);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }

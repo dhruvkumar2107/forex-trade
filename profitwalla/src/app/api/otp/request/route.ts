@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { apiSuccess, apiError, apiInternalError } from '@/lib/api';
 import { otpRequestSchema } from '@/lib/validation';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,12 +18,12 @@ export async function POST(request: NextRequest) {
 
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const rateLimitKey = `otp-request:${mobile}:${ip}`;
-    const rateLimit = checkRateLimit(rateLimitKey, RATE_LIMITS.otpRequest);
+    const rateLimit = await checkRateLimit(rateLimitKey, RATE_LIMITS.otpRequest);
     if (!rateLimit.allowed) {
       return apiError('Too many requests. Please try again later.', 429);
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     const existing = await prisma.otpSession.findFirst({
@@ -40,8 +41,6 @@ export async function POST(request: NextRequest) {
         data: { mobile, code, expiresAt },
       });
     }
-
-    console.log(`[OTP] Sent to ${mobile}: ${code} (dev mode — check server logs)`);
 
     return apiSuccess({ message: 'OTP sent successfully' });
   } catch (error) {

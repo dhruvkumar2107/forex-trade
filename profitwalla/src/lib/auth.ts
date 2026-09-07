@@ -3,6 +3,26 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
 
+declare module 'next-auth' {
+  interface User {
+    role?: string;
+  }
+  interface Session {
+    user: {
+      id: string;
+      email: string | null;
+      name: string | null;
+      role: string;
+    };
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    role?: string;
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -20,7 +40,31 @@ export const authOptions: NextAuthOptions = {
 
         if (!user) return null;
 
-        if (!await bcrypt.compare(credentials.password, user.passwordHash)) return null;
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          throw new Error('Account locked. Try again later.');
+        }
+
+        if (!await bcrypt.compare(credentials.password, user.passwordHash)) {
+          const failedAttempts = (user.failedLoginAttempts || 0) + 1;
+          const lockedUntil = failedAttempts >= 5
+            ? new Date(Date.now() + 15 * 60 * 1000)
+            : null;
+
+          await prisma.adminUser.update({
+            where: { id: user.id },
+            data: { failedLoginAttempts: failedAttempts, lockedUntil },
+          });
+
+          if (failedAttempts >= 5) {
+            throw new Error('Account locked due to too many failed attempts.');
+          }
+          return null;
+        }
+
+        await prisma.adminUser.update({
+          where: { id: user.id },
+          data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
+        });
 
         return {
           id: user.id,
@@ -38,13 +82,13 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as { role: string }).role;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { role: string }).role = token.role as string;
+        session.user.role = token.role as string;
       }
       return session;
     },
