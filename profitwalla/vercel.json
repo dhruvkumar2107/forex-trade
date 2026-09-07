@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm install && npx --yes prisma generate && npx prisma db push --skip-generate",
+  "installCommand": "npm install && npx --yes prisma generate && npx prisma db push --skip-generate --accept-data-loss",
   "framework": "nextjs",
   "crons": [
     {
