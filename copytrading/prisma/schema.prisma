@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CopyMode {
+  fixed_ratio
+  equity_proportional
+  fixed_lot
+}
+
+enum ConnectionHealth {
+  healthy
+  degraded
+  disconnected
+  error
+}
+
+enum TradeStatus {
+  open
+  closed
+  modified
+  error
+}
+
+model CopyTradingClient {
+  id                        String           @id @default(uuid())
+  clientRef                 String           @unique // ref to System 1's client ID
+  mt5AccountNumber          String
+  brokerServer              String
+  mt5InvestorPasswordEnc    String
+  mt5InvestorPasswordIv     String
+  metaApiAccountId          String?
+  metaApiConnectionId       String?
+  copyMode                  CopyMode         @default(equity_proportional)
+  lotRatio                  Float            @default(1.0)
+  maxDrawdownPercent        Float            @default(20.0)
+  symbolWhitelist           String[]         @default(["XAUUSD", "BTCUSD", "EURUSD", "GBPUSD", "AUDUSD"])
+  isActive                  Boolean          @default(true)
+  isPaused                  Boolean          @default(false)
+  connectionHealth          ConnectionHealth @default(disconnected)
+  lastTradeSyncAt           DateTime?
+  lastHealthCheckAt         DateTime?
+  equityAtStart             Float?
+  currentEquity             Float?
+  totalPnL                  Float            @default(0)
+  tradesCopied              Int              @default(0)
+  tradeEvents               TradeEvent[]
+  clientConfigs             ClientConfigHistory[]
+  alerts                    CopyTradeAlert[]
+
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+
+  @@index([clientRef])
+  @@index([mt5AccountNumber])
+  @@index([connectionHealth])
+  @@index([isActive])
+}
+
+model TradeEvent {
+  id                  String       @id @default(uuid())
+  clientId            String
+  client              CopyTradingClient @relation(fields: [clientId], references: [id])
+  masterTradeId       String
+  symbol              String
+  type                String       // buy, sell
+  volume              Float
+  openPrice           Float
+  closePrice          Float?
+  sl                  Float?
+  tp                  Float?
+  profit              Float?
+  status              TradeStatus  @default(open)
+  executionLatencyMs  Int?
+  error               String?
+  metaApiTradeId      String?
+
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([clientId])
+  @@index([masterTradeId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ClientConfigHistory {
+  id            String   @id @default(uuid())
+  clientId      String
+  client        CopyTradingClient @relation(fields: [clientId], references: [id])
+  field         String   // e.g. "lotRatio", "maxDrawdownPercent", "isPaused"
+  oldValue      String
+  newValue      String
+  changedBy     String
+
+  createdAt     DateTime @default(now())
+
+  @@index([clientId])
+}
+
+model CopyTradeAlert {
+  id            String   @id @default(uuid())
+  clientId      String
+  client        CopyTradingClient @relation(fields: [clientId], references: [id])
+  type          String   // connection_drop, high_slippage, execution_failure, drawdown_breach
+  severity      String   @default("warning") // info, warning, critical
+  message       String
+  resolved      Boolean  @default(false)
+  resolvedAt    DateTime?
+
+  createdAt     DateTime @default(now())
+
+  @@index([clientId])
+  @@index([type])
+  @@index([resolved])
+}
+
+model MasterAccount {
+  id                String   @id @default(uuid())
+  metaApiAccountId  String   @unique
+  accountName       String
+  isActive          Boolean  @default(true)
+  currentEquity     Float?
+  currentBalance    Float?
+  openTrades        Int      @default(0)
+  todayPnL          Float    @default(0)
+  totalPnL          Float    @default(0)
+  lastSyncAt        DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model StaffUser {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String?
+  passwordHash  String
+  role          String   @default("staff")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ReconciliationLog {
+  id            String   @id @default(uuid())
+  clientId      String
+  matchStatus   String   // match, mismatch, error
+  details       String?
+  checkedAt     DateTime @default(now())
+
+  @@index([clientId])
+  @@index([checkedAt])
+}

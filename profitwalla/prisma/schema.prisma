@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClientStatus {
+  submitted
+  reviewing
+  approved
+  connected
+  rejected
+}
+
+model Client {
+  id                        String         @id @default(uuid())
+  fullName                  String
+  mobile                    String         @unique
+  mobileVerified            Boolean        @default(false)
+  otpCode                   String?
+  otpExpiry                 DateTime?
+  occupation                String
+  mt5AccountNumber          String
+  mt5InvestorPasswordEnc    String
+  mt5InvestorPasswordIv     String
+  brokerServer              String
+  startingEquity            Float
+  city                      String
+  state                     String
+  consentGiven              Boolean        @default(false)
+  consentTimestamp          DateTime?
+  status                    ClientStatus   @default(submitted)
+  adminNotes                String?
+  pushedToCopyTrading       Boolean        @default(false)
+  pushedAt                  DateTime?
+  auditLogs                 AuditLog[]
+
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+
+  @@index([status])
+  @@index([mobile])
+  @@index([mt5AccountNumber])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id])
+  action        String   // e.g. "view_credentials", "approve", "reject", "push_to_copy_trading"
+  performedBy   String   // admin user identifier
+  details       String?
+  ipAddress     String?
+
+  createdAt     DateTime @default(now())
+
+  @@index([clientId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model AdminUser {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String?
+  passwordHash  String
+  role          String   @default("admin") // admin, staff, viewer
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+  lastLoginAt   DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model OtpSession {
+  id            String   @id @default(uuid())
+  mobile        String
+  code          String
+  purpose       String   @default("verification") // verification, login
+  attempts      Int      @default(0)
+  verified      Boolean  @default(false)
+  expiresAt     DateTime
+
+  createdAt     DateTime @default(now())
+
+  @@index([mobile])
+}

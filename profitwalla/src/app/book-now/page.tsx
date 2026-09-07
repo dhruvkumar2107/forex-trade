@@ -1,0 +1,457 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+
+interface FormData {
+  fullName: string;
+  mobile: string;
+  otpCode: string;
+  occupation: string;
+  mt5AccountNumber: string;
+  mt5InvestorPassword: string;
+  brokerServer: string;
+  startingEquity: number | '';
+  city: string;
+  state: string;
+  consentGiven: boolean;
+}
+
+const STEPS = [
+  { id: 1, label: 'Personal' },
+  { id: 2, label: 'Verification' },
+  { id: 3, label: 'Trading Account' },
+  { id: 4, label: 'Review' },
+];
+
+const INDIAN_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh',
+  'Puducherry', 'Chandigarh',
+];
+
+const BROKER_SERVERS = [
+  'Exness-MT5Real', 'Exness-MT5Trial', 'ICMarketsSC-MT5', 'FPMarkets-MT5',
+  'Pepperstone-MT5', 'XMGlobal-MT5', 'Tickmill-MT5', 'RoboForex-MT5',
+  'HotForex-MT5', 'FXTM-MT5', 'OctaFX-MT5', 'Alpari-MT5',
+  'InstaForex-MT5', 'AdmiralMarkets-MT5',
+];
+
+export default function BookNowPage() {
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState<FormData>({
+    fullName: '', mobile: '', otpCode: '', occupation: '',
+    mt5AccountNumber: '', mt5InvestorPassword: '', brokerServer: '',
+    startingEquity: '', city: '', state: '', consentGiven: false,
+  });
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [submittedId, setSubmittedId] = useState('');
+
+  const updateField = (field: keyof FormData, value: string | boolean | number) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setError('');
+  };
+
+  const sendOtp = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/otp/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile: formData.mobile }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOtpSent(true);
+      } else {
+        setError(data.error);
+      }
+    } catch {
+      setError('Failed to send OTP');
+    }
+    setLoading(false);
+  };
+
+  const verifyOtp = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile: formData.mobile, code: formData.otpCode }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOtpVerified(true);
+        setStep(3);
+      } else {
+        setError(data.error);
+      }
+    } catch {
+      setError('Failed to verify OTP');
+    }
+    setLoading(false);
+  };
+
+  const submitForm = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/clients/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          startingEquity: Number(formData.startingEquity),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSubmittedId(data.data.id);
+        setSubmitted(true);
+      } else {
+        setError(data.error);
+      }
+    } catch {
+      setError('Failed to submit application');
+    }
+    setLoading(false);
+  };
+
+  const canProceed = () => {
+    switch (step) {
+      case 1: return formData.fullName && formData.mobile.length === 13 && formData.occupation;
+      case 2: return otpVerified;
+      case 3: return formData.mt5AccountNumber && formData.mt5InvestorPassword && formData.brokerServer && formData.startingEquity && formData.city && formData.state;
+      case 4: return formData.consentGiven;
+      default: return false;
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="glass-card p-10 max-w-md w-full text-center animate-slide-up">
+          <div className="w-16 h-16 rounded-full bg-accent-green/10 border border-accent-green/20 flex items-center justify-center mx-auto mb-6">
+            <span className="text-3xl">✓</span>
+          </div>
+          <h1 className="font-heading text-2xl font-bold mb-3">Application Submitted!</h1>
+          <p className="text-gray-400 mb-6">
+            Thank you, {formData.fullName}. Your application is under review. 
+            We&apos;ll notify you within 24 hours via SMS.
+          </p>
+          <div className="glass-card p-4 mb-6">
+            <p className="text-gray-500 text-xs mb-1">Your Reference ID</p>
+            <p className="font-mono text-accent-teal text-sm">{submittedId.slice(0, 8)}</p>
+          </div>
+          <Link href="/" className="btn-secondary inline-block">
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen pt-24 pb-12 px-4">
+      <div className="max-w-lg mx-auto">
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <div className="flex justify-between mb-3">
+            {STEPS.map((s) => (
+              <div key={s.id} className="flex flex-col items-center">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
+                    step >= s.id
+                      ? 'bg-accent-teal text-terminal-bg'
+                      : 'bg-terminal-card border border-terminal-border text-gray-500'
+                  }`}
+                >
+                  {step > s.id ? '✓' : s.id}
+                </div>
+                <span className={`text-xs mt-1 ${step >= s.id ? 'text-accent-teal' : 'text-gray-500'}`}>
+                  {s.label}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="h-1 bg-terminal-card rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-accent-teal to-accent-gold transition-all duration-500"
+              style={{ width: `${(step / 4) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Step Content */}
+        <div className="glass-card p-8 animate-slide-up">
+          {error && (
+            <div className="bg-accent-red/10 border border-accent-red/20 rounded-lg p-3 mb-6 text-accent-red text-sm">
+              {error}
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="space-y-5">
+              <h2 className="font-heading text-xl font-bold mb-4">Personal Details</h2>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Full Name</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Enter your full name"
+                  value={formData.fullName}
+                  onChange={(e) => updateField('fullName', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Mobile Number</label>
+                <div className="flex gap-2">
+                  <span className="input-field w-16 flex items-center justify-center text-gray-400 shrink-0">+91</span>
+                  <input
+                    type="tel"
+                    className="input-field"
+                    placeholder="9876543210"
+                    value={formData.mobile.replace('+91', '')}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      updateField('mobile', '+91' + val);
+                    }}
+                    maxLength={10}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Business / Occupation</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Trader, Business Owner"
+                  value={formData.occupation}
+                  onChange={(e) => updateField('occupation', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-5">
+              <h2 className="font-heading text-xl font-bold mb-2">Mobile Verification</h2>
+              <p className="text-gray-400 text-sm mb-4">
+                We&apos;ll send a 6-digit OTP to <span className="text-white font-mono">{formData.mobile}</span>
+              </p>
+              {!otpSent ? (
+                <button onClick={sendOtp} disabled={loading} className="btn-primary w-full">
+                  {loading ? 'Sending...' : 'Send OTP'}
+                </button>
+              ) : !otpVerified ? (
+                <>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1.5">Enter OTP</label>
+                    <input
+                      type="text"
+                      className="input-field-mono text-center text-2xl tracking-[0.5em]"
+                      placeholder="------"
+                      value={formData.otpCode}
+                      onChange={(e) => updateField('otpCode', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      maxLength={6}
+                    />
+                  </div>
+                  <button onClick={verifyOtp} disabled={loading || formData.otpCode.length !== 6} className="btn-primary w-full">
+                    {loading ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                  <button onClick={sendOtp} className="text-accent-teal text-sm hover:underline w-full text-center">
+                    Resend OTP
+                  </button>
+                </>
+              ) : (
+                <div className="bg-accent-green/10 border border-accent-green/20 rounded-lg p-4 text-center">
+                  <span className="text-accent-green">✓ Mobile verified successfully</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-5">
+              <h2 className="font-heading text-xl font-bold mb-4">Trading Account Details</h2>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">MT5 Account Number</label>
+                <input
+                  type="text"
+                  className="input-field-mono"
+                  placeholder="e.g. 12345678"
+                  value={formData.mt5AccountNumber}
+                  onChange={(e) => updateField('mt5AccountNumber', e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <label className="text-sm text-gray-400">MT5 Investor Password</label>
+                  <span className="flex items-center gap-1 text-xs text-accent-teal">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                    Read-only
+                  </span>
+                </div>
+                <input
+                  type="password"
+                  className="input-field-mono"
+                  placeholder="Your investor password"
+                  value={formData.mt5InvestorPassword}
+                  onChange={(e) => updateField('mt5InvestorPassword', e.target.value)}
+                />
+                <p className="text-gray-500 text-xs mt-1.5">
+                  We only request your read-only Investor Password — never your live trading password. 
+                  This is encrypted and never displayed in plain text.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Broker Server</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Exness-MT5Real"
+                  value={formData.brokerServer}
+                  onChange={(e) => updateField('brokerServer', e.target.value)}
+                  list="broker-servers"
+                />
+                <datalist id="broker-servers">
+                  {BROKER_SERVERS.map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+                <p className="text-gray-500 text-xs mt-1.5">
+                  Select from suggestions or type your broker server name
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Starting Equity (USD)</label>
+                <input
+                  type="number"
+                  className="input-field-mono"
+                  placeholder="e.g. 5000"
+                  value={formData.startingEquity}
+                  onChange={(e) => updateField('startingEquity', Number(e.target.value))}
+                  min={100}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">City</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="City"
+                    value={formData.city}
+                    onChange={(e) => updateField('city', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">State</label>
+                  <select
+                    className="input-field"
+                    value={formData.state}
+                    onChange={(e) => updateField('state', e.target.value)}
+                  >
+                    <option value="">Select state</option>
+                    {INDIAN_STATES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-6">
+              <h2 className="font-heading text-xl font-bold mb-4">Review & Consent</h2>
+              
+              <div className="space-y-3">
+                {[
+                  { label: 'Name', value: formData.fullName },
+                  { label: 'Mobile', value: formData.mobile },
+                  { label: 'Occupation', value: formData.occupation },
+                  { label: 'MT5 Account', value: formData.mt5AccountNumber },
+                  { label: 'Broker Server', value: formData.brokerServer },
+                  { label: 'Starting Equity', value: `$${Number(formData.startingEquity).toLocaleString()}` },
+                  { label: 'City', value: `${formData.city}, ${formData.state}` },
+                ].map((item) => (
+                  <div key={item.label} className="flex justify-between py-2 border-b border-terminal-border">
+                    <span className="text-gray-400 text-sm">{item.label}</span>
+                    <span className="text-sm font-medium">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="glass-card p-4 border-accent-red/20">
+                <h3 className="font-heading text-sm font-semibold text-accent-red mb-2">⚠️ Risk Disclosure</h3>
+                <p className="text-gray-400 text-xs leading-relaxed">
+                  Forex and CFD trading carries a high level of risk and may not be suitable for all investors. 
+                  Past performance is not indicative of future results. The possibility exists that you could 
+                  sustain a loss of some or all of your initial investment. Copy trading does not guarantee profits.
+                </p>
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  className="mt-1 w-4 h-4 rounded border-terminal-border bg-terminal-bg text-accent-teal focus:ring-accent-teal/50"
+                  checked={formData.consentGiven}
+                  onChange={(e) => updateField('consentGiven', e.target.checked)}
+                />
+                <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
+                  I understand that forex/crypto CFD trading carries risk of loss. I am trading of my own accord, 
+                  this is not investment advice, and I have read the risk disclosure above. I consent to sharing 
+                  my MT5 investor (read-only) credentials for copy trading purposes.
+                </span>
+              </label>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <div className="flex gap-3 mt-8">
+            {step > 1 && (
+              <button
+                onClick={() => setStep((s) => s - 1)}
+                className="btn-secondary flex-1"
+              >
+                Back
+              </button>
+            )}
+            {step < 4 ? (
+              <button
+                onClick={() => {
+                  if (step === 2 && !otpVerified) return;
+                  setStep((s) => s + 1);
+                }}
+                disabled={!canProceed()}
+                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                onClick={submitForm}
+                disabled={!canProceed() || loading}
+                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Submitting...' : 'Submit Application'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

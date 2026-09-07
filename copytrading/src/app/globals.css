@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --terminal-bg: #0A0E14;
+    --terminal-card: #111820;
+    --terminal-border: #1E2633;
+    --accent-teal: #00D4AA;
+    --accent-gold: #FFD700;
+    --accent-red: #FF4757;
+    --accent-green: #00E676;
+    --accent-blue: #2196F3;
+  }
+
+  body {
+    @apply bg-terminal-bg text-gray-100 font-sans antialiased;
+  }
+
+  * {
+    @apply border-terminal-border;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-terminal-card/80 backdrop-blur-xl border border-terminal-border rounded-xl;
+  }
+
+  .glass-card-hover {
+    @apply glass-card hover:border-accent-teal/30 hover:shadow-lg hover:shadow-accent-teal/5 transition-all duration-300;
+  }
+
+  .btn-primary {
+    @apply bg-accent-teal hover:bg-accent-teal/90 text-terminal-bg font-semibold px-6 py-3 rounded-lg transition-all duration-200 active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply bg-terminal-card border border-terminal-border hover:border-accent-teal/50 text-gray-100 font-medium px-6 py-3 rounded-lg transition-all duration-200;
+  }
+
+  .btn-danger {
+    @apply bg-accent-red/10 border border-accent-red/30 hover:bg-accent-red/20 text-accent-red font-medium px-6 py-3 rounded-lg transition-all duration-200;
+  }
+
+  .input-field {
+    @apply w-full bg-terminal-bg border border-terminal-border rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:border-accent-teal focus:ring-1 focus:ring-accent-teal/50 focus:outline-none transition-all duration-200;
+  }
+
+  .input-field-mono {
+    @apply input-field font-mono tracking-wider;
+  }
+
+  .status-pill {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .status-healthy {
+    @apply status-pill bg-accent-green/10 text-accent-green border border-accent-green/20;
+  }
+
+  .status-degraded {
+    @apply status-pill bg-accent-gold/10 text-accent-gold border border-accent-gold/20;
+  }
+
+  .status-disconnected {
+    @apply status-pill bg-accent-red/10 text-accent-red border border-accent-red/20;
+  }
+
+  .financial-number {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+
+  .candlestick-bg {
+    background-image: 
+      linear-gradient(90deg, transparent 0%, transparent 48%, rgba(0, 212, 170, 0.03) 48%, rgba(0, 212, 170, 0.03) 52%, transparent 52%, transparent 100%),
+      linear-gradient(0deg, transparent 0%, transparent 48%, rgba(0, 212, 170, 0.03) 48%, rgba(0, 212, 170, 0.03) 52%, transparent 52%, transparent 100%);
+    background-size: 60px 60px;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-teal to-accent-gold;
+  }
+}
