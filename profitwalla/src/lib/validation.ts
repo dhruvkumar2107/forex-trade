@@ -17,15 +17,6 @@ export const clientFormSchema = z.object({
 
 export type ClientFormInput = z.infer<typeof clientFormSchema>;
 
-export const otpRequestSchema = z.object({
-  mobile: z.string().regex(/^\+91[6-9]\d{9}$/, 'Invalid Indian mobile number'),
-});
-
-export const otpVerifySchema = z.object({
-  mobile: z.string().regex(/^\+91[6-9]\d{9}$/, 'Invalid Indian mobile number'),
-  code: z.string().length(6, 'OTP must be 6 digits'),
-});
-
 export const adminLoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),

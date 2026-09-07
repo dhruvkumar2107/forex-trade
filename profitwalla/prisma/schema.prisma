@@ -20,8 +20,6 @@ model Client {
   fullName                  String
   mobile                    String         @unique
   mobileVerified            Boolean        @default(false)
-  otpCode                   String?
-  otpExpiry                 DateTime?
   occupation                String
   mt5AccountNumber          String
   mt5InvestorPasswordEnc    String
@@ -76,20 +74,6 @@ model AdminUser {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-}
-
-model OtpSession {
-  id            String   @id @default(uuid())
-  mobile        String
-  code          String
-  purpose       String   @default("verification")
-  attempts      Int      @default(0)
-  verified      Boolean  @default(false)
-  expiresAt     DateTime
-
-  createdAt     DateTime @default(now())
-
-  @@index([mobile])
 }
 
 model RateLimitEntry {

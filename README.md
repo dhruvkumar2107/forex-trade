@@ -53,7 +53,6 @@ Runs on: http://localhost:3001
 
 ### System 1 (Profitwalla)
 - Stepper onboarding form with live validation
-- OTP mobile verification (Twilio integration ready)
 - AES-256-GCM encrypted investor passwords
 - Admin panel with audit log
 - One-click push to copy trading system
@@ -91,7 +90,6 @@ Runs on: http://localhost:3001
 - [ ] Generate new ENCRYPTION_KEY (64 hex chars)
 - [ ] Set strong INTER_SYSTEM_API_SECRET
 - [ ] Configure MetaApi credentials
-- [ ] Configure Twilio for OTP
 - [ ] Set up Resend for emails
 - [ ] Enable HTTPS
 - [ ] Set up database backups

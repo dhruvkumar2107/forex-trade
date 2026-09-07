@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 interface FormData {
   fullName: string;
   mobile: string;
-  otpCode: string;
   occupation: string;
   mt5AccountNumber: string;
   mt5InvestorPassword: string;
@@ -19,9 +18,8 @@ interface FormData {
 
 const STEPS = [
   { id: 1, label: 'Personal' },
-  { id: 2, label: 'Verification' },
-  { id: 3, label: 'Trading Account' },
-  { id: 4, label: 'Review' },
+  { id: 2, label: 'Trading Account' },
+  { id: 3, label: 'Review' },
 ];
 
 const INDIAN_STATES = [
@@ -46,59 +44,16 @@ export default function BookNowPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
-    fullName: '', mobile: '', otpCode: '', occupation: '',
+    fullName: '', mobile: '', occupation: '',
     mt5AccountNumber: '', mt5InvestorPassword: '', brokerServer: '',
     startingEquity: '', city: '', state: '', consentGiven: false,
   });
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const updateField = (field: keyof FormData, value: string | boolean | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setError('');
-  };
-
-  const sendOtp = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/otp/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile: formData.mobile }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setOtpSent(true);
-      } else {
-        setError(data.error);
-      }
-    } catch {
-      setError('Failed to send OTP');
-    }
-    setLoading(false);
-  };
-
-  const verifyOtp = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/otp/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile: formData.mobile, code: formData.otpCode }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setOtpVerified(true);
-        setStep(3);
-      } else {
-        setError(data.error);
-      }
-    } catch {
-      setError('Failed to verify OTP');
-    }
-    setLoading(false);
   };
 
   const submitForm = async () => {
@@ -127,9 +82,8 @@ export default function BookNowPage() {
   const canProceed = () => {
     switch (step) {
       case 1: return formData.fullName && formData.mobile.length === 13 && formData.occupation;
-      case 2: return otpVerified;
-      case 3: return formData.mt5AccountNumber && formData.mt5InvestorPassword && formData.brokerServer && formData.startingEquity && formData.city && formData.state;
-      case 4: return formData.consentGiven;
+      case 2: return formData.mt5AccountNumber && formData.mt5InvestorPassword && formData.brokerServer && formData.startingEquity && formData.city && formData.state;
+      case 3: return formData.consentGiven;
       default: return false;
     }
   };
@@ -160,7 +114,7 @@ export default function BookNowPage() {
           <div className="h-1 bg-terminal-card rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-accent-teal to-accent-gold transition-all duration-500"
-              style={{ width: `${(step / 4) * 100}%` }}
+              style={{ width: `${(step / 3) * 100}%` }}
             />
           </div>
         </div>
@@ -217,44 +171,6 @@ export default function BookNowPage() {
           )}
 
           {step === 2 && (
-            <div className="space-y-5">
-              <h2 className="font-heading text-xl font-bold mb-2">Mobile Verification</h2>
-              <p className="text-gray-400 text-sm mb-4">
-                We&apos;ll send a 6-digit OTP to <span className="text-white font-mono">{formData.mobile}</span>
-              </p>
-              {!otpSent ? (
-                <button onClick={sendOtp} disabled={loading} className="btn-primary w-full">
-                  {loading ? 'Sending...' : 'Send OTP'}
-                </button>
-              ) : !otpVerified ? (
-                <>
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1.5">Enter OTP</label>
-                    <input
-                      type="text"
-                      className="input-field-mono text-center text-2xl tracking-[0.5em]"
-                      placeholder="------"
-                      value={formData.otpCode}
-                      onChange={(e) => updateField('otpCode', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      maxLength={6}
-                    />
-                  </div>
-                  <button onClick={verifyOtp} disabled={loading || formData.otpCode.length !== 6} className="btn-primary w-full">
-                    {loading ? 'Verifying...' : 'Verify OTP'}
-                  </button>
-                  <button onClick={sendOtp} className="text-accent-teal text-sm hover:underline w-full text-center">
-                    Resend OTP
-                  </button>
-                </>
-              ) : (
-                <div className="bg-accent-green/10 border border-accent-green/20 rounded-lg p-4 text-center">
-                  <span className="text-accent-green">✓ Mobile verified successfully</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {step === 3 && (
             <div className="space-y-5">
               <h2 className="font-heading text-xl font-bold mb-4">Trading Account Details</h2>
               <div>
@@ -347,7 +263,7 @@ export default function BookNowPage() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 3 && (
             <div className="space-y-6">
               <h2 className="font-heading text-xl font-bold mb-4">Review & Consent</h2>
               
@@ -403,12 +319,9 @@ export default function BookNowPage() {
                 Back
               </button>
             )}
-            {step < 4 ? (
+            {step < 3 ? (
               <button
-                onClick={() => {
-                  if (step === 2 && !otpVerified) return;
-                  setStep((s) => s + 1);
-                }}
+                onClick={() => setStep((s) => s + 1)}
                 disabled={!canProceed()}
                 className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >

@@ -30,8 +30,7 @@ export async function checkRateLimit(
 }
 
 export const RATE_LIMITS = {
-  otpRequest: { windowMs: 60000, maxRequests: 3 },
-  otpVerify: { windowMs: 300000, maxRequests: 10 },
+
   clientSubmit: { windowMs: 300000, maxRequests: 5 },
   statusCheck: { windowMs: 60000, maxRequests: 30 },
 } as const;

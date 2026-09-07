@@ -24,18 +24,6 @@ export async function POST(request: NextRequest) {
       return apiError('Too many submissions. Please try again later.', 429);
     }
 
-    const verifiedSession = await prisma.otpSession.findFirst({
-      where: {
-        mobile: data.mobile,
-        verified: true,
-        expiresAt: { gt: new Date() },
-      },
-    });
-
-    if (!verifiedSession) {
-      return apiError('Please verify your mobile number first');
-    }
-
     const existingByAccount = await prisma.client.findFirst({
       where: { mt5AccountNumber: data.mt5AccountNumber },
     });
