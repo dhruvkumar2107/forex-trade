@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface FormData {
   fullName: string;
@@ -43,6 +43,7 @@ const BROKER_SERVERS = [
 ];
 
 export default function BookNowPage() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
     fullName: '', mobile: '', otpCode: '', occupation: '',
@@ -53,8 +54,6 @@ export default function BookNowPage() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [submittedId, setSubmittedId] = useState('');
 
   const updateField = (field: keyof FormData, value: string | boolean | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -115,8 +114,7 @@ export default function BookNowPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setSubmittedId(data.data.id);
-        setSubmitted(true);
+        router.push(`/thank-you?clientId=${data.data.id}`);
       } else {
         setError(data.error);
       }
@@ -135,30 +133,6 @@ export default function BookNowPage() {
       default: return false;
     }
   };
-
-  if (submitted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="glass-card p-10 max-w-md w-full text-center animate-slide-up">
-          <div className="w-16 h-16 rounded-full bg-accent-green/10 border border-accent-green/20 flex items-center justify-center mx-auto mb-6">
-            <span className="text-3xl">✓</span>
-          </div>
-          <h1 className="font-heading text-2xl font-bold mb-3">Application Submitted!</h1>
-          <p className="text-gray-400 mb-6">
-            Thank you, {formData.fullName}. Your application is under review. 
-            We&apos;ll notify you within 24 hours via SMS.
-          </p>
-          <div className="glass-card p-4 mb-6">
-            <p className="text-gray-500 text-xs mb-1">Your Reference ID</p>
-            <p className="font-mono text-accent-teal text-sm">{submittedId.slice(0, 8)}</p>
-          </div>
-          <Link href="/" className="btn-secondary inline-block">
-            Back to Home
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-4">
