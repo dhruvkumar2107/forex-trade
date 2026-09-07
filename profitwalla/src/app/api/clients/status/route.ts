@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const rateLimitKey = `status-check:${ip}`;
-    const rateLimit = checkRateLimit(rateLimitKey, RATE_LIMITS.statusCheck);
+    const rateLimit = await checkRateLimit(rateLimitKey, RATE_LIMITS.statusCheck);
     if (!rateLimit.allowed) {
       return apiError('Too many requests. Please try again later.', 429);
     }
