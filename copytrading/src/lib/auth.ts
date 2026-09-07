@@ -34,6 +34,41 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        // Ensure StaffUser table exists (shared DB)
+        try {
+          await prisma.$executeRawUnsafe(`
+            CREATE TABLE IF NOT EXISTS "StaffUser" (
+              "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+              "email" TEXT NOT NULL,
+              "name" TEXT,
+              "passwordHash" TEXT NOT NULL,
+              "role" TEXT NOT NULL DEFAULT 'staff',
+              "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              "updatedAt" TIMESTAMP(3) NOT NULL,
+              CONSTRAINT "StaffUser_pkey" PRIMARY KEY ("id")
+            );
+          `);
+          await prisma.$executeRawUnsafe(`
+            CREATE UNIQUE INDEX IF NOT EXISTS "StaffUser_email_key" ON "StaffUser"("email");
+          `);
+        } catch (e) {
+          console.error('[Auth] Table creation error:', e);
+        }
+
+        // Auto-create staff user if none exists
+        const userCount = await prisma.staffUser.count();
+        if (userCount === 0) {
+          const passwordHash = await bcrypt.hash('staff123', 12);
+          await prisma.staffUser.create({
+            data: {
+              email: 'staff@copytrading.local',
+              name: 'Staff',
+              passwordHash,
+              role: 'staff',
+            },
+          });
+        }
+
         const user = await prisma.staffUser.findUnique({
           where: { email: credentials.email },
         });
