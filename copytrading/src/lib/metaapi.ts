@@ -1,4 +1,5 @@
-import type { ConnectionHealth, CopyMode, DEFAULT_SYMBOL_WHITELIST } from '../../../shared/types';
+import type { ConnectionHealth, CopyMode } from './types';
+import { DEFAULT_SYMBOL_WHITELIST } from './types';
 
 const METAAPI_TOKEN = process.env.METAAPI_TOKEN;
 

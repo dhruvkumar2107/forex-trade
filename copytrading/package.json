@@ -2,9 +2,15 @@
   "name": "copytrading",
   "version": "1.0.0",
   "private": true,
+  "allowedScripts": {
+    "@prisma/client": true,
+    "prisma": true,
+    "@prisma/engines": true
+  },
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "next build",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",

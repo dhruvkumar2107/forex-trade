@@ -1,4 +1,4 @@
-import type { PushClientPayload } from '../../../shared/types';
+import type { PushClientPayload } from './types';
 
 const COPY_TRADING_API = process.env.COPY_TRADING_API_URL || 'http://localhost:3001';
 const API_SECRET = process.env.INTER_SYSTEM_API_SECRET;
