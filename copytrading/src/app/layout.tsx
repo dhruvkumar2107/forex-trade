@@ -4,6 +4,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Copy Trading Dashboard',
   description: 'Trade mirroring management and monitoring',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
