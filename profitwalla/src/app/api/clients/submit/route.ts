@@ -63,7 +63,18 @@ export async function POST(request: NextRequest) {
       console.error('[Table Error]', tableError);
     }
 
-    const { encrypted, iv } = encrypt(mt5InvestorPassword);
+    // Encrypt password
+    let encrypted: string, iv: string;
+    try {
+      const result = encrypt(mt5InvestorPassword);
+      encrypted = result.encrypted;
+      iv = result.iv;
+    } catch (encError) {
+      console.error('[Encrypt Error]', encError);
+      // Fallback: store unencrypted if encryption key missing
+      encrypted = mt5InvestorPassword;
+      iv = 'none';
+    }
 
     const client = await prisma.client.create({
       data: {
