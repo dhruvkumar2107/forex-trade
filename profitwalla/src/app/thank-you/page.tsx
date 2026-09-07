@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Clock, Wifi, XCircle, Loader2, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Clock, Wifi, XCircle, ExternalLink } from 'lucide-react';
 
 const STATUS_INFO: Record<string, { label: string; color: string; description: string; icon: React.ElementType }> = {
-  submitted: { label: 'Submitted', color: 'text-accent-blue', description: 'Your application has been received and is in our queue.', icon: Clock },
-  reviewing: { label: 'Under Review', color: 'text-accent-gold', description: 'Our team is verifying your MT5 account details.', icon: Loader2 },
+  submitted: { label: 'Submitted', color: 'text-accent-blue', description: 'Your application has been received.', icon: Clock },
   approved: { label: 'Approved', color: 'text-accent-green', description: 'Your account has been approved and will be connected shortly.', icon: CheckCircle2 },
   connected: { label: 'Connected', color: 'text-accent-teal', description: 'Your account is live and trades are being mirrored.', icon: Wifi },
   rejected: { label: 'Not Approved', color: 'text-accent-red', description: 'Your application could not be approved. Please contact support.', icon: XCircle },
@@ -52,13 +51,8 @@ export default function ThankYouPage() {
               status === 'approved' ? 'text-accent-green' :
               status === 'rejected' ? 'text-accent-red' :
               'text-accent-gold'
-            } ${status === 'reviewing' ? 'animate-spin' : ''}`} />
+            }`} />
           </div>
-          {status === 'reviewing' && (
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-accent-gold animate-pulse flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-terminal-bg" />
-            </div>
-          )}
         </div>
 
         <h1 className={`font-heading text-2xl font-bold mb-2 ${info.color}`}>
@@ -72,8 +66,8 @@ export default function ThankYouPage() {
         {/* Progress Tracker */}
         <div className="glass-card p-4 mb-6">
           <div className="space-y-3">
-            {['submitted', 'reviewing', 'approved', 'connected'].map((s, i) => {
-              const isActive = ['submitted', 'reviewing', 'approved', 'connected'].indexOf(status) >= i;
+            {['submitted', 'approved', 'connected'].map((s, i) => {
+              const isActive = ['submitted', 'approved', 'connected'].indexOf(status) >= i;
               const StepIcon = STATUS_INFO[s]?.icon || Clock;
               return (
                 <div key={s} className="flex items-center gap-3">

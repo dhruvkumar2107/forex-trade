@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { User, CheckCircle2, Clock, XCircle, Wifi, Activity, TrendingUp, Shield, AlertTriangle } from 'lucide-react';
+import { User, CheckCircle2, Clock, XCircle, Wifi, TrendingUp, Shield, AlertTriangle } from 'lucide-react';
 
 interface ClientData {
   id: string;
@@ -30,14 +30,7 @@ const STATUS_CONFIG: Record<string, {
     icon: Clock,
     color: 'text-accent-blue',
     bgColor: 'bg-accent-blue/10 border-accent-blue/20',
-    description: 'Your application has been received and is in our review queue.',
-  },
-  reviewing: {
-    label: 'Under Review',
-    icon: Activity,
-    color: 'text-accent-gold',
-    bgColor: 'bg-accent-gold/10 border-accent-gold/20',
-    description: 'Our team is currently verifying your MT5 account details.',
+    description: 'Your application has been received.',
   },
   approved: {
     label: 'Approved',
@@ -153,8 +146,8 @@ export default function DashboardPage() {
         <div className="glass-card p-6 mb-6">
           <h3 className="font-heading text-sm font-semibold text-gray-400 mb-4">APPLICATION PROGRESS</h3>
           <div className="space-y-4">
-            {['submitted', 'reviewing', 'approved', 'connected'].map((s, i) => {
-              const isActive = ['submitted', 'reviewing', 'approved', 'connected'].indexOf(client.status) >= i;
+            {['submitted', 'approved', 'connected'].map((s, i) => {
+              const isActive = ['submitted', 'approved', 'connected'].indexOf(client.status) >= i;
               const isCurrent = client.status === s;
               const config = STATUS_CONFIG[s];
               return (

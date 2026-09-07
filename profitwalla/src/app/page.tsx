@@ -73,7 +73,7 @@ const faqs = [
   },
   {
     q: 'How long does onboarding take?',
-    a: 'The form takes under 3 minutes. Our team reviews your submission within 24 hours. Once approved, your account is connected and trades start mirroring immediately.',
+    a: 'The form takes under 3 minutes. Once submitted, your account is connected and trades start mirroring immediately.',
   },
   {
     q: 'Can I pause or stop copy trading anytime?',
@@ -279,8 +279,7 @@ export default function LandingPage() {
           <div className="space-y-8">
             {[
               { step: '01', title: 'Book Your Slot', desc: 'Fill out the onboarding form with your MT5 details. Takes under 3 minutes.' },
-              { step: '02', title: 'Account Verification', desc: 'Our team reviews your submission and verifies your MT5 investor credentials.' },
-              { step: '03', title: 'Connection & Go Live', desc: 'Your account is connected to our copy trading system. Trades mirror automatically.' },
+              { step: '02', title: 'Connection & Go Live', desc: 'Your account is connected to our copy trading system. Trades mirror automatically.' },
             ].map((item) => (
               <div key={item.step} className="flex gap-6 items-start glass-card p-6">
                 <div className="financial-number text-4xl font-bold text-accent-teal/30 shrink-0">

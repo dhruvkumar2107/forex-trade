@@ -21,7 +21,7 @@ async function sendConfirmationEmail(email: string, name: string, clientId: stri
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h1 style="color: #00D4AA; font-size: 24px;">Application Received</h1>
           <p>Hi ${name},</p>
-          <p>Thank you for applying to Profitwalla. Your application has been received and our team will review your details within <strong>24 hours</strong>.</p>
+          <p>Thank you for applying to Profitwalla. Your application has been <strong>approved</strong> and your account will be connected shortly.</p>
           <div style="background: #111820; border: 1px solid #1E2633; border-radius: 8px; padding: 16px; margin: 20px 0;">
             <p style="color: #9CA3AF; font-size: 14px; margin: 0;">Your Reference ID</p>
             <p style="color: #00D4AA; font-family: monospace; font-size: 16px; margin: 4px 0 0 0;">${clientId}</p>
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         state: data.state,
         consentGiven: data.consentGiven,
         consentTimestamp: new Date(),
-        status: 'submitted',
+        status: 'approved',
       },
     });
 
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     return apiSuccess({
       id: client.id,
       status: client.status,
-      message: 'Application submitted successfully! We will review your details within 24 hours.',
+      message: 'Application submitted successfully! Your account has been approved.',
     }, 201);
   } catch (error) {
     console.error('[Client Submit Error]', error);
