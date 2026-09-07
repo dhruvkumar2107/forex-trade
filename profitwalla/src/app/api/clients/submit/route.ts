@@ -5,8 +5,93 @@ import { apiSuccess, apiError, apiInternalError, getClientIp } from '@/lib/api';
 import { clientFormSchema } from '@/lib/validation';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
+async function ensureTables() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Client" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "fullName" TEXT NOT NULL,
+        "mobile" TEXT NOT NULL,
+        "mobileVerified" BOOLEAN NOT NULL DEFAULT false,
+        "occupation" TEXT NOT NULL,
+        "mt5AccountNumber" TEXT NOT NULL,
+        "mt5InvestorPasswordEnc" TEXT NOT NULL,
+        "mt5InvestorPasswordIv" TEXT NOT NULL,
+        "brokerServer" TEXT NOT NULL,
+        "startingEquity" DOUBLE PRECISION NOT NULL,
+        "city" TEXT NOT NULL,
+        "state" TEXT NOT NULL,
+        "consentGiven" BOOLEAN NOT NULL DEFAULT false,
+        "consentTimestamp" TIMESTAMP(3),
+        "status" TEXT NOT NULL DEFAULT 'submitted',
+        "adminNotes" TEXT,
+        "pushedToCopyTrading" BOOLEAN NOT NULL DEFAULT false,
+        "pushedAt" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS "Client_mobile_key" ON "Client"("mobile");
+      CREATE UNIQUE INDEX IF NOT EXISTS "Client_mt5AccountNumber_key" ON "Client"("mt5AccountNumber");
+      CREATE INDEX IF NOT EXISTS "Client_status_idx" ON "Client"("status");
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "AuditLog" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "clientId" TEXT NOT NULL,
+        "action" TEXT NOT NULL,
+        "performedBy" TEXT NOT NULL,
+        "details" TEXT,
+        "ipAddress" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+      );
+      CREATE INDEX IF NOT EXISTS "AuditLog_clientId_idx" ON "AuditLog"("clientId");
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "AdminUser" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "email" TEXT NOT NULL,
+        "name" TEXT,
+        "passwordHash" TEXT NOT NULL,
+        "role" TEXT NOT NULL DEFAULT 'admin',
+        "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false,
+        "twoFactorSecret" TEXT,
+        "lastLoginAt" TIMESTAMP(3),
+        "failedLoginAttempts" INTEGER NOT NULL DEFAULT 0,
+        "lockedUntil" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "AdminUser_pkey" PRIMARY KEY ("id")
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS "AdminUser_email_key" ON "AdminUser"("email");
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "RateLimitEntry" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "key" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "RateLimitEntry_pkey" PRIMARY KEY ("id")
+      );
+      CREATE INDEX IF NOT EXISTS "RateLimitEntry_key_createdAt_idx" ON "RateLimitEntry"("key", "createdAt");
+    `);
+  } catch (e) {
+    console.error('[Ensure Tables Error]', e);
+  }
+}
+
+let tablesEnsured = false;
+
 export async function POST(request: NextRequest) {
   try {
+    if (!tablesEnsured) {
+      await ensureTables();
+      tablesEnsured = true;
+    }
+
     const body = await request.json();
     const parsed = clientFormSchema.safeParse(body);
 

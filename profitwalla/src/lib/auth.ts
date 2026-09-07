@@ -34,6 +34,44 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        // Ensure AdminUser table exists (shared DB)
+        try {
+          await prisma.$executeRawUnsafe(`
+            CREATE TABLE IF NOT EXISTS "AdminUser" (
+              "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+              "email" TEXT NOT NULL,
+              "name" TEXT,
+              "passwordHash" TEXT NOT NULL,
+              "role" TEXT NOT NULL DEFAULT 'admin',
+              "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false,
+              "twoFactorSecret" TEXT,
+              "lastLoginAt" TIMESTAMP(3),
+              "failedLoginAttempts" INTEGER NOT NULL DEFAULT 0,
+              "lockedUntil" TIMESTAMP(3),
+              "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              "updatedAt" TIMESTAMP(3) NOT NULL,
+              CONSTRAINT "AdminUser_pkey" PRIMARY KEY ("id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "AdminUser_email_key" ON "AdminUser"("email");
+          `);
+        } catch (e) {
+          console.error('[Auth] Table creation error:', e);
+        }
+
+        // Auto-create admin user if none exists
+        const userCount = await prisma.adminUser.count();
+        if (userCount === 0) {
+          const passwordHash = await bcrypt.hash('admin123', 12);
+          await prisma.adminUser.create({
+            data: {
+              email: 'admin@profitwalla.com',
+              name: 'Admin',
+              passwordHash,
+              role: 'admin',
+            },
+          });
+        }
+
         const user = await prisma.adminUser.findUnique({
           where: { email: credentials.email },
         });
