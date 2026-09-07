@@ -1,6 +1,4 @@
-import { encrypt } from './encryption';
-import { prisma } from './prisma';
-
+const COPYTRADING_API_URL = process.env.COPYTRADING_API_URL || 'https://copytrading-murex.vercel.app';
 const API_SECRET = process.env.INTER_SYSTEM_API_SECRET;
 
 export async function pushClientToCopyTrading(payload: {
@@ -12,23 +10,22 @@ export async function pushClientToCopyTrading(payload: {
   fullName: string;
 }): Promise<{ success: boolean; clientId?: string; error?: string }> {
   try {
-    const { encrypted, iv } = encrypt(payload.mt5InvestorPassword);
-
-    const client = await prisma.copyTradingClient.create({
-      data: {
-        clientRef: payload.clientRef,
-        mt5AccountNumber: payload.mt5AccountNumber,
-        brokerServer: payload.brokerServer,
-        mt5InvestorPasswordEnc: encrypted,
-        mt5InvestorPasswordIv: iv,
-        equityAtStart: payload.startingEquity,
-        currentEquity: payload.startingEquity,
-        isActive: true,
-        connectionHealth: 'disconnected',
+    const res = await fetch(`${COPYTRADING_API_URL}/api/clients/push`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-secret': API_SECRET || '',
       },
+      body: JSON.stringify(payload),
     });
 
-    return { success: true, clientId: client.id };
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.error || `HTTP ${res.status}` };
+    }
+
+    return { success: true, clientId: data.data?.id };
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }

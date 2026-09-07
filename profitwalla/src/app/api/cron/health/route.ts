@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { metaApiService } from '@/lib/metaapi';
 import { apiSuccess, apiInternalError } from '@/lib/api';
 
+export const dynamic = 'force-dynamic';
+
 function apiError(message: string, status = 400) {
   return Response.json({ success: false, error: message }, { status });
 }

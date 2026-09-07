@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { metaApiService } from '@/lib/metaapi';
 import { apiSuccess, apiInternalError } from '@/lib/api';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
