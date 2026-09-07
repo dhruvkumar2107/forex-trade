@@ -58,7 +58,7 @@ export class CopyEngine {
   }
 
   private async mirrorTradesForClient(
-    client: { id: string; metaApiAccountId: string | null; copyMode: string; lotRatio: number; maxDrawdownPercent: number; symbolWhitelist: string[] },
+    client: { id: string; metaApiAccountId: string | null; copyMode: string; lotRatio: number; maxDrawdownPercent: number; symbolWhitelist: string[]; equityAtStart: number | null },
     masterTrades: MetaApiTrade[],
     masterEquity: number
   ) {

@@ -25,11 +25,21 @@ export async function POST(request: NextRequest) {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    await prisma.otpSession.upsert({
+    const existing = await prisma.otpSession.findFirst({
       where: { mobile },
-      update: { code, expiresAt, attempts: 0, verified: false },
-      create: { mobile, code, expiresAt },
+      orderBy: { createdAt: 'desc' },
     });
+
+    if (existing) {
+      await prisma.otpSession.update({
+        where: { id: existing.id },
+        update: { code, expiresAt, attempts: 0, verified: false },
+      });
+    } else {
+      await prisma.otpSession.create({
+        data: { mobile, code, expiresAt },
+      });
+    }
 
     console.log(`[OTP] Sent to ${mobile}: ${code} (dev mode — check server logs)`);
 
