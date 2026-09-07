@@ -30,7 +30,6 @@ export async function checkRateLimit(
 }
 
 export const RATE_LIMITS = {
-
-  clientSubmit: { windowMs: 300000, maxRequests: 5 },
+  clientSubmit: { windowMs: 60000, maxRequests: 10 },
   statusCheck: { windowMs: 60000, maxRequests: 30 },
 } as const;
