@@ -78,6 +78,10 @@
     @apply status-pill bg-accent-red/10 text-accent-red border border-accent-red/20;
   }
 
+  .input-field-error {
+    @apply input-field border-accent-red focus:border-accent-red focus:ring-accent-red/50;
+  }
+
   .financial-number {
     @apply font-mono tabular-nums tracking-tight;
   }

@@ -2,25 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { CheckCircle2, Clock, Wifi, XCircle, Loader2, ExternalLink } from 'lucide-react';
 
-const STATUS_INFO: Record<string, { label: string; color: string; description: string }> = {
-  submitted: { label: 'Submitted', color: 'text-accent-blue', description: 'Your application has been received and is in our queue.' },
-  reviewing: { label: 'Under Review', color: 'text-accent-gold', description: 'Our team is verifying your MT5 account details.' },
-  approved: { label: 'Approved', color: 'text-accent-green', description: 'Your account has been approved and will be connected shortly.' },
-  connected: { label: 'Connected', color: 'text-accent-teal', description: 'Your account is live and trades are being mirrored.' },
-  rejected: { label: 'Not Approved', color: 'text-accent-red', description: 'Your application could not be approved. Please contact support.' },
+const STATUS_INFO: Record<string, { label: string; color: string; description: string; icon: React.ElementType }> = {
+  submitted: { label: 'Submitted', color: 'text-accent-blue', description: 'Your application has been received and is in our queue.', icon: Clock },
+  reviewing: { label: 'Under Review', color: 'text-accent-gold', description: 'Our team is verifying your MT5 account details.', icon: Loader2 },
+  approved: { label: 'Approved', color: 'text-accent-green', description: 'Your account has been approved and will be connected shortly.', icon: CheckCircle2 },
+  connected: { label: 'Connected', color: 'text-accent-teal', description: 'Your account is live and trades are being mirrored.', icon: Wifi },
+  rejected: { label: 'Not Approved', color: 'text-accent-red', description: 'Your application could not be approved. Please contact support.', icon: XCircle },
 };
 
 export default function ThankYouPage() {
   const [status, setStatus] = useState('submitted');
   const [clientName, setClientName] = useState('');
+  const [clientId, setClientId] = useState('');
 
   useEffect(() => {
-    // In production, get this from URL params or local storage
     const params = new URLSearchParams(window.location.search);
-    const clientId = params.get('clientId');
-    if (clientId) {
-      fetch(`/api/clients/status?clientId=${clientId}`)
+    const id = params.get('clientId');
+    setClientId(id || '');
+    if (id) {
+      fetch(`/api/clients/status?clientId=${id}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.success) {
@@ -33,6 +35,7 @@ export default function ThankYouPage() {
   }, []);
 
   const info = STATUS_INFO[status] || STATUS_INFO.submitted;
+  const StatusIcon = info.icon;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
@@ -44,9 +47,12 @@ export default function ThankYouPage() {
             status === 'rejected' ? 'border-accent-red bg-accent-red/10' :
             'border-accent-gold bg-accent-gold/10'
           }`}>
-            <span className="text-4xl">
-              {status === 'connected' ? '⚡' : status === 'approved' ? '✓' : status === 'rejected' ? '✕' : '⏳'}
-            </span>
+            <StatusIcon className={`w-10 h-10 ${
+              status === 'connected' ? 'text-accent-teal' :
+              status === 'approved' ? 'text-accent-green' :
+              status === 'rejected' ? 'text-accent-red' :
+              'text-accent-gold'
+            } ${status === 'reviewing' ? 'animate-spin' : ''}`} />
           </div>
           {status === 'reviewing' && (
             <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-accent-gold animate-pulse flex items-center justify-center">
@@ -68,12 +74,13 @@ export default function ThankYouPage() {
           <div className="space-y-3">
             {['submitted', 'reviewing', 'approved', 'connected'].map((s, i) => {
               const isActive = ['submitted', 'reviewing', 'approved', 'connected'].indexOf(status) >= i;
+              const StepIcon = STATUS_INFO[s]?.icon || Clock;
               return (
                 <div key={s} className="flex items-center gap-3">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
                     isActive ? 'bg-accent-teal text-terminal-bg' : 'bg-terminal-border text-gray-500'
                   }`}>
-                    {isActive ? '✓' : i + 1}
+                    {isActive ? <CheckCircle2 className="w-3 h-3" /> : i + 1}
                   </div>
                   <span className={`text-sm ${isActive ? 'text-white' : 'text-gray-500'}`}>
                     {STATUS_INFO[s]?.label}
@@ -85,13 +92,19 @@ export default function ThankYouPage() {
         </div>
 
         <p className="text-gray-500 text-xs mb-6">
-          You&apos;ll receive an SMS notification when your status changes. 
-          You can also check back here anytime.
+          A confirmation has been sent to your registered number. You can check back here anytime.
         </p>
 
-        <Link href="/" className="btn-secondary inline-block">
-          Back to Home
-        </Link>
+        <div className="flex flex-col gap-3">
+          {clientId && (
+            <Link href={`/dashboard?clientId=${clientId}`} className="btn-primary inline-flex items-center justify-center gap-2">
+              View Dashboard <ExternalLink className="w-4 h-4" />
+            </Link>
+          )}
+          <Link href="/" className="btn-secondary inline-block">
+            Back to Home
+          </Link>
+        </div>
       </div>
     </div>
   );
