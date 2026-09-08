@@ -8,7 +8,6 @@ export async function middleware(request: NextRequest) {
   // Allow login pages, API routes, and public assets
   if (
     pathname === '/admin/login' ||
-    pathname === '/ct/staff/login' ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon')
@@ -28,19 +27,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protect /ct/staff/* and /ct/dashboard/*
-  if (pathname.startsWith('/ct/staff') || pathname.startsWith('/ct/dashboard')) {
-    if (!token) {
-      const loginUrl = new URL('/ct/staff/login', request.url);
-      loginUrl.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-    return NextResponse.next();
-  }
-
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/ct/staff/:path*', '/ct/dashboard/:path*'],
+  matcher: ['/admin/:path*'],
 };

@@ -202,7 +202,7 @@ export default function ContactPage() {
                         <Send className="w-5 h-5" />
                       </button>
                       <p className="text-xs text-gray-500 text-center">
-                        Form coming soon. For immediate assistance, email{' '}
+                        We typically respond within 24 hours. For immediate assistance, email{' '}
                         <a href="mailto:contact@profitwalla.com" className="text-accent-teal hover:underline">
                           contact@profitwalla.com
                         </a>

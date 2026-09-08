@@ -233,9 +233,7 @@ export default function DashboardPage() {
             Back to Home
           </Link>
           <a
-            href="https://wa.me/919999999999?text=Hi%2C%20I%20need%20help%20with%20my%20Profitwalla%20account"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="mailto:support@profitwalla.com?subject=Help%20with%20my%20Profitwalla%20account"
             className="btn-primary flex-1 text-center"
           >
             Contact Support

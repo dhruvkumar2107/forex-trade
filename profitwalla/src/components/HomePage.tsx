@@ -1554,7 +1554,7 @@ export default function HomePage() {
       {/* ═══════════════════════════════════════════════════
           SECTION 11: TRUST
           ═══════════════════════════════════════════════════ */}
-      <section className="section">
+      <section id="trust" className="section">
         <div className="section-container">
           <AnimatedSection>
             <div className="section-header">

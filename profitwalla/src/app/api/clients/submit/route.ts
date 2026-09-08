@@ -71,9 +71,7 @@ export async function POST(request: NextRequest) {
       iv = result.iv;
     } catch (encError) {
       console.error('[Encrypt Error]', encError);
-      // Fallback: store unencrypted if encryption key missing
-      encrypted = mt5InvestorPassword;
-      iv = 'none';
+      return NextResponse.json({ success: false, error: 'Security configuration error. Please contact support.' }, { status: 500 });
     }
 
     const client = await prisma.client.create({
