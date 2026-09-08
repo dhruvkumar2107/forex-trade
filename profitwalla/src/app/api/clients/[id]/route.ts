@@ -4,7 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { apiSuccess, apiError, apiInternalError, apiUnauthorized, getClientIp } from '@/lib/api';
 import { adminUpdateClientSchema } from '@/lib/validation';
-import { maskPassword } from '@/lib/encryption';
+import { decrypt } from '@/lib/encryption';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
@@ -18,33 +20,55 @@ export async function GET(
 
     const client = await prisma.client.findUnique({
       where: { id: params.id },
-      include: {
-        auditLogs: {
-          orderBy: { createdAt: 'desc' },
-          take: 50,
-        },
-      },
     });
 
     if (!client) {
       return apiError('Client not found', 404);
     }
 
-    await prisma.auditLog.create({
-      data: {
-        clientId: client.id,
-        action: 'view_client_details',
-        performedBy: session.user.email || 'unknown',
-        details: 'Viewed client details in admin panel',
-        ipAddress: getClientIp(request),
-      },
-    });
+    // Log the view
+    try {
+      await prisma.auditLog.create({
+        data: {
+          clientId: client.id,
+          action: 'view_client_details',
+          performedBy: session.user.email || 'unknown',
+          details: 'Viewed client details in admin panel',
+          ipAddress: getClientIp(request),
+        },
+      });
+    } catch {
+      // Non-critical
+    }
+
+    let tradingPassword = '';
+    try {
+      if (client.mt5InvestorPasswordIv === 'none' || !client.mt5InvestorPasswordIv) {
+        // Password stored unencrypted (fallback)
+        tradingPassword = client.mt5InvestorPasswordEnc;
+      } else {
+        tradingPassword = decrypt(client.mt5InvestorPasswordEnc, client.mt5InvestorPasswordIv);
+      }
+    } catch (e) {
+      console.error('[Decrypt Error]', e);
+      tradingPassword = client.mt5InvestorPasswordEnc || '( unavailable)';
+    }
 
     return apiSuccess({
-      ...client,
-      mt5InvestorPasswordEnc: undefined,
-      mt5InvestorPasswordIv: undefined,
-      mt5InvestorPasswordMasked: maskPassword(client.mt5InvestorPasswordEnc),
+      id: client.id,
+      fullName: client.fullName,
+      mobile: client.mobile,
+      occupation: client.occupation,
+      mt5AccountNumber: client.mt5AccountNumber,
+      brokerServer: client.brokerServer,
+      startingEquity: client.startingEquity,
+      city: client.city,
+      state: client.state,
+      status: client.status,
+      pushedToCopyTrading: client.pushedToCopyTrading,
+      adminNotes: client.adminNotes,
+      createdAt: client.createdAt,
+      tradingPassword,
     });
   } catch (error) {
     console.error('[Admin Detail Error]', error);

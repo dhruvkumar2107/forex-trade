@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { apiSuccess, apiError, apiInternalError, apiUnauthorized } from '@/lib/api';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const configureSchema = z.object({
   clientId: z.string().uuid(),
   metaApiAccountId: z.string().min(1),
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
       data: {
         metaApiAccountId,
         metaApiConnectionId: metaApiConnectionId || null,
-        connectionHealth: 'healthy',
+        connectionHealth: 'connected',
         lastHealthCheckAt: new Date(),
       },
     });

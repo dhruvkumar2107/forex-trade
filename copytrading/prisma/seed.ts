@@ -6,38 +6,57 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding copy trading database...');
 
-  const staffPasswordHash = await bcrypt.hash('staff123', 12);
-  
-  await prisma.staffUser.upsert({
-    where: { email: 'staff@copytrading.local' },
-    update: {},
-    create: {
-      email: 'staff@copytrading.local',
-      name: 'Staff',
-      passwordHash: staffPasswordHash,
-      role: 'staff',
-    },
-  });
+  // Staff credentials from environment variables — NEVER use defaults in production
+  const staffEmail = process.env.SEED_STAFF_EMAIL || 'staff@profitwalla.local';
+  const staffPassword = process.env.SEED_STAFF_PASSWORD;
+  const staffName = process.env.SEED_STAFF_NAME || 'Staff';
+
+  if (!staffPassword) {
+    console.warn('[Seed] SEED_STAFF_PASSWORD not set. Skipping staff user creation.');
+    console.warn('[Seed] Set SEED_STAFF_EMAIL and SEED_STAFF_PASSWORD environment variables.');
+  } else {
+    const staffPasswordHash = await bcrypt.hash(staffPassword, 12);
+
+    await prisma.staffUser.upsert({
+      where: { email: staffEmail },
+      update: {},
+      create: {
+        email: staffEmail,
+        name: staffName,
+        passwordHash: staffPasswordHash,
+        role: 'staff',
+        permissions: [
+          'VIEW_CLIENT', 'VIEW_DASHBOARD', 'VIEW_TRADES', 'VIEW_ALERTS',
+        ],
+      },
+    });
+
+    console.log(`[Seed] Staff user created: ${staffEmail}`);
+  }
 
   // Create master account placeholder
-  await prisma.masterAccount.upsert({
-    where: { id: 'master-1' },
-    update: {},
-    create: {
-      id: 'master-1',
-      metaApiAccountId: process.env.METAAPI_MASTER_ACCOUNT_ID || 'pending',
-      accountName: 'Profitwalla Master',
-      isActive: true,
-    },
-  });
+  const masterAccountId = process.env.METAAPI_MASTER_ACCOUNT_ID;
+  if (masterAccountId) {
+    await prisma.masterAccount.upsert({
+      where: { metaApiAccountId: masterAccountId },
+      update: {},
+      create: {
+        metaApiAccountId: masterAccountId,
+        accountName: 'Profitwalla Master',
+        isActive: true,
+      },
+    });
+    console.log(`[Seed] Master account configured: ${masterAccountId}`);
+  } else {
+    console.warn('[Seed] METAAPI_MASTER_ACCOUNT_ID not set. Skipping master account creation.');
+  }
 
-  console.log('Staff user created: staff@copytrading.local / staff123');
-  console.log('Seed completed!');
+  console.log('[Seed] Completed!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('[Seed] Error:', e);
     process.exit(1);
   })
   .finally(async () => {

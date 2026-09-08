@@ -1,71 +1,39 @@
-import { prisma } from '../lib/prisma';
-import { metaApiService } from '../lib/metaapi';
+import { connectionMonitor } from '../lib/connection-monitor';
 
+/**
+ * Standalone health check job.
+ * Can be run via: npm run jobs:healthcheck
+ */
 async function healthCheck() {
-  console.log('[HealthCheck] Starting health check...');
+  console.log('[HealthCheck] Starting...');
 
-  const clients = await prisma.copyTradingClient.findMany({
-    where: { isActive: true },
-  });
+  try {
+    const report = await connectionMonitor.checkAllClients();
 
-  let healthy = 0;
-  let degraded = 0;
-  let disconnected = 0;
+    console.log('[HealthCheck] Results:');
+    console.log(`  Total clients: ${report.totalClients}`);
+    console.log(`  Healthy: ${report.healthy}`);
+    console.log(`  Degraded: ${report.degraded}`);
+    console.log(`  Disconnected: ${report.disconnected}`);
+    console.log(`  Errors: ${report.errors}`);
 
-  for (const client of clients) {
-    if (!client.metaApiAccountId) {
-      disconnected++;
-      continue;
-    }
-
-    try {
-      const info = await metaApiService.getAccountInfo(client.metaApiAccountId);
-      const health = info ? 'healthy' : 'disconnected';
-
-      await prisma.copyTradingClient.update({
-        where: { id: client.id },
-        data: { connectionHealth: health, lastHealthCheckAt: new Date() },
-      });
-
-      if (health === 'healthy') {
-        healthy++;
-        // Update equity
-        if (info) {
-          await prisma.copyTradingClient.update({
-            where: { id: client.id },
-            data: {
-              currentEquity: info.equity,
-              totalPnL: info.equity - (client.equityAtStart || 0),
-            },
-          });
-        }
-      } else {
-        disconnected++;
-        await prisma.copyTradeAlert.create({
-          data: {
-            clientId: client.id,
-            type: 'connection_drop',
-            severity: 'warning',
-            message: `Connection to MT5 account lost`,
-          },
-        });
+    for (const result of report.results) {
+      if (result.state !== 'connected') {
+        console.log(`  [!] Client ${result.clientId}: ${result.state} (score: ${result.healthScore})`);
       }
-    } catch (error) {
-      degraded++;
-      console.error(`[HealthCheck] Error for ${client.clientRef}:`, error);
     }
-  }
 
-  console.log(`[HealthCheck] Complete: ${healthy} healthy, ${degraded} degraded, ${disconnected} disconnected`);
+    console.log('[HealthCheck] Complete');
+  } catch (error) {
+    console.error('[HealthCheck] Failed:', error);
+  }
 }
 
+// Self-executing if run directly
 if (require.main === module) {
   healthCheck()
     .then(() => process.exit(0))
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    });
+    .catch(() => process.exit(1));
 }
 
 export { healthCheck };

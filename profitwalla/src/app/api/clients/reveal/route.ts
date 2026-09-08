@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { decrypt } from '@/lib/encryption';
 import { apiSuccess, apiError, apiInternalError, apiUnauthorized, getClientIp } from '@/lib/api';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

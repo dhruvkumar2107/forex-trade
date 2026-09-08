@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { apiSuccess, apiError, apiInternalError } from '@/lib/api';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';

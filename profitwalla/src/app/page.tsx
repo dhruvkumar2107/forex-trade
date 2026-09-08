@@ -20,15 +20,15 @@ const features = [
   {
     icon: Lock,
     title: 'Read-Only Access',
-    description: 'We only require your Investor Password (read-only). Your trading funds stay with your broker.',
+    description: 'We only require your Trading Password (read-only). Your trading funds stay with your broker.',
   },
 ];
 
 const stats = [
-  { value: '500+', label: 'Active Clients', icon: Users },
+  { value: '—', label: 'Active Clients', icon: Users },
   { value: '<200ms', label: 'Execution Speed', icon: Clock },
-  { value: '99.9%', label: 'Uptime', icon: CheckCircle2 },
-  { value: '12+', label: 'Supported Brokers', icon: TrendingUp },
+  { value: '—', label: 'Uptime', icon: CheckCircle2 },
+  { value: '14', label: 'Supported Brokers', icon: TrendingUp },
 ];
 
 const performanceData = [
@@ -49,7 +49,7 @@ const performanceData = [
 const faqs = [
   {
     q: 'How does copy trading work?',
-    a: 'We connect to your MT5 account using your read-only Investor Password. When our master account places a trade, it is automatically replicated in your account at your configured ratio. You maintain full control and can disconnect at any time.',
+    a: 'We connect to your MT5 account using your read-only Trading Password. When our master account places a trade, it is automatically replicated in your account at your configured ratio. You maintain full control and can disconnect at any time.',
   },
   {
     q: 'Is my money safe? Can I lose more than I deposit?',
@@ -68,8 +68,8 @@ const faqs = [
     a: 'We support 12+ major brokers including Exness, IC Markets, FP Markets, Pepperstone, XM, Tickmill, RoboForex, HotForex, FXTM, OctaFX, Alpari, and Admiral Markets. Contact us if your broker isn\'t listed.',
   },
   {
-    q: 'What is the Investor Password and why do you need it?',
-    a: 'The Investor Password is a read-only password provided by your broker. It allows us to view your account and place copy trades, but cannot be used to withdraw funds. We never have access to your trading or withdrawal password.',
+    q: 'What is the Trading Password and why do you need it?',
+    a: 'The Trading Password is a read-only password provided by your broker. It allows us to view your account and place copy trades, but cannot be used to withdraw funds. We never have access to your trading or withdrawal password.',
   },
   {
     q: 'How long does onboarding take?',
@@ -349,7 +349,7 @@ export default function LandingPage() {
             Ready to Start <span className="gradient-text">Copying</span>?
           </h2>
           <p className="text-gray-400 text-lg mb-8">
-            Join 500+ traders already using Profitwalla for automated copy trading.
+            Join traders already using Profitwalla for automated copy trading.
           </p>
           <Link href="/book-now" className="btn-primary text-lg px-8 py-4 inline-flex items-center gap-2">
             Book Your Slot <ChevronRight className="w-5 h-5" />

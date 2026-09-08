@@ -6,6 +6,8 @@ import { decrypt } from '@/lib/encryption';
 import { apiSuccess, apiError, apiInternalError, apiUnauthorized, getClientIp } from '@/lib/api';
 import { pushClientToCopyTrading } from '@/lib/copytrading-api';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -37,10 +39,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Decrypt password for transfer (encrypted channel)
-    const investorPassword = decrypt(
-      client.mt5InvestorPasswordEnc,
-      client.mt5InvestorPasswordIv
-    );
+    let investorPassword: string;
+    if (client.mt5InvestorPasswordIv === 'none' || !client.mt5InvestorPasswordIv) {
+      investorPassword = client.mt5InvestorPasswordEnc;
+    } else {
+      investorPassword = decrypt(
+        client.mt5InvestorPasswordEnc,
+        client.mt5InvestorPasswordIv
+      );
+    }
 
     // Push to copy trading system
     const result = await pushClientToCopyTrading({
@@ -56,13 +63,13 @@ export async function POST(request: NextRequest) {
       return apiError(`Failed to push to copy trading: ${result.error}`);
     }
 
-    // Update client status
+    // Update client status — 'pushed' means record created on CT side, not yet live
     await prisma.client.update({
       where: { id: clientId },
       data: {
         pushedToCopyTrading: true,
         pushedAt: new Date(),
-        status: 'connected',
+        status: 'pushed',
       },
     });
 

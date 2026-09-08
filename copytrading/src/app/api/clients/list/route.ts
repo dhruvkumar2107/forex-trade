@@ -2,7 +2,9 @@ import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { apiSuccess, apiError, apiInternalError, apiUnauthorized, getClientIp } from '@/lib/api';
+import { apiSuccess, apiInternalError, apiUnauthorized } from '@/lib/api';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,9 +41,8 @@ export async function GET(request: NextRequest) {
         copyMode: true,
         lotRatio: true,
         maxDrawdownPercent: true,
-        symbolWhitelist: true,
-        isActive: true,
-        isPaused: true,
+        allowedSymbols: true,
+        status: true,
         connectionHealth: true,
         lastTradeSyncAt: true,
         equityAtStart: true,

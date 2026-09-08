@@ -316,7 +316,7 @@ export default function BookNowPage() {
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <label className="text-sm text-gray-400">
-                    MT5 Investor Password <span className="text-accent-red">*</span>
+                    MT5 Trading Password <span className="text-accent-red">*</span>
                   </label>
                   <span className="flex items-center gap-1 text-xs text-accent-teal">
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -328,7 +328,7 @@ export default function BookNowPage() {
                 <input
                   type="password"
                   className={inputClass('mt5InvestorPassword')}
-                  placeholder="Your investor password"
+                  placeholder="Your trading password"
                   value={formData.mt5InvestorPassword}
                   onChange={(e) => updateField('mt5InvestorPassword', e.target.value)}
                   onBlur={() => handleBlur('mt5InvestorPassword')}
@@ -338,7 +338,7 @@ export default function BookNowPage() {
                 />
                 <FieldError field="mt5InvestorPassword" />
                 <p className="text-gray-500 text-xs mt-1.5">
-                  We only request your read-only Investor Password — never your live trading password. 
+                  We only request your read-only Trading Password — never your live trading password. 
                   This is encrypted and never displayed in plain text.
                 </p>
               </div>
@@ -478,7 +478,7 @@ export default function BookNowPage() {
                 <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
                   I understand that forex/crypto CFD trading carries risk of loss. I am trading of my own accord, 
                   this is not investment advice, and I have read the risk disclosure above. I consent to sharing 
-                  my MT5 investor (read-only) credentials for copy trading purposes.
+                  my MT5 trading (read-only) credentials for copy trading purposes.
                 </span>
               </label>
               <FieldError field="consentGiven" />

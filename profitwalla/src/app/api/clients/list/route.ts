@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { apiSuccess, apiError, apiInternalError, apiUnauthorized } from '@/lib/api';
 import { maskPassword } from '@/lib/encryption';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

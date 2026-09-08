@@ -39,6 +39,13 @@ const STATUS_CONFIG: Record<string, {
     bgColor: 'bg-accent-green/10 border-accent-green/20',
     description: 'Your account has been approved and will be connected shortly.',
   },
+  pushed: {
+    label: 'Connecting',
+    icon: Clock,
+    color: 'text-accent-gold',
+    bgColor: 'bg-accent-gold/10 border-accent-gold/20',
+    description: 'Your account is being connected to the copy trading system.',
+  },
   connected: {
     label: 'Live & Trading',
     icon: Wifi,
@@ -146,8 +153,8 @@ export default function DashboardPage() {
         <div className="glass-card p-6 mb-6">
           <h3 className="font-heading text-sm font-semibold text-gray-400 mb-4">APPLICATION PROGRESS</h3>
           <div className="space-y-4">
-            {['submitted', 'approved', 'connected'].map((s, i) => {
-              const isActive = ['submitted', 'approved', 'connected'].indexOf(client.status) >= i;
+            {['submitted', 'approved', 'pushed', 'connected'].map((s, i) => {
+              const isActive = ['submitted', 'approved', 'pushed', 'connected'].indexOf(client.status) >= i;
               const isCurrent = client.status === s;
               const config = STATUS_CONFIG[s];
               return (
@@ -214,7 +221,7 @@ export default function DashboardPage() {
           <div className="flex items-start gap-3">
             <Shield className="w-4 h-4 text-gray-500 mt-0.5 shrink-0" />
             <p className="text-gray-500 text-xs leading-relaxed">
-              Your investor password is encrypted with AES-256-GCM and never displayed in plain text. 
+              Your trading password is encrypted with AES-256-GCM and never displayed in plain text. 
               We only use read-only access for copy trading.
             </p>
           </div>

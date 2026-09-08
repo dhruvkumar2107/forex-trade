@@ -10,9 +10,13 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "jobs:reconcile": "ts-node src/jobs/reconcile.ts",
-    "jobs:healthcheck": "ts-node src/jobs/healthcheck.ts",
-    "jobs:cron": "ts-node src/jobs/cron.ts"
+    "db:seed": "ts-node --project tsconfig.jobs.json prisma/seed.ts",
+    "jobs:reconcile": "ts-node --project tsconfig.jobs.json src/jobs/reconcile.ts",
+    "jobs:healthcheck": "ts-node --project tsconfig.jobs.json src/jobs/healthcheck.ts",
+    "jobs:cron": "ts-node --project tsconfig.jobs.json src/jobs/cron.ts"
+  },
+  "prisma": {
+    "seed": "ts-node --project tsconfig.jobs.json prisma/seed.ts"
   },
   "dependencies": {
     "next": "^14.2.0",

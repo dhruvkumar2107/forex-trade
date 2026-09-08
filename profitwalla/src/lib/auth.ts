@@ -3,6 +3,9 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
 
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
 declare module 'next-auth' {
   interface User {
     role?: string;
@@ -34,74 +37,49 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        // Ensure AdminUser table exists (shared DB)
-        try {
-          await prisma.$executeRawUnsafe(`
-            CREATE TABLE IF NOT EXISTS "AdminUser" (
-              "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
-              "email" TEXT NOT NULL,
-              "name" TEXT,
-              "passwordHash" TEXT NOT NULL,
-              "role" TEXT NOT NULL DEFAULT 'admin',
-              "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false,
-              "twoFactorSecret" TEXT,
-              "lastLoginAt" TIMESTAMP(3),
-              "failedLoginAttempts" INTEGER NOT NULL DEFAULT 0,
-              "lockedUntil" TIMESTAMP(3),
-              "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              "updatedAt" TIMESTAMP(3) NOT NULL,
-              CONSTRAINT "AdminUser_pkey" PRIMARY KEY ("id")
-            );
-            CREATE UNIQUE INDEX IF NOT EXISTS "AdminUser_email_key" ON "AdminUser"("email");
-          `);
-        } catch (e) {
-          console.error('[Auth] Table creation error:', e);
-        }
-
-        // Auto-create admin user if none exists
-        const userCount = await prisma.adminUser.count();
-        if (userCount === 0) {
-          const passwordHash = await bcrypt.hash('admin123', 12);
-          await prisma.adminUser.create({
-            data: {
-              email: 'admin@profitwalla.com',
-              name: 'Admin',
-              passwordHash,
-              role: 'admin',
-            },
-          });
-        }
-
         const user = await prisma.adminUser.findUnique({
           where: { email: credentials.email },
         });
 
-        if (!user) return null;
-
-        if (user.lockedUntil && user.lockedUntil > new Date()) {
-          throw new Error('Account locked. Try again later.');
+        if (!user) {
+          // Constant-time comparison to prevent user enumeration
+          await bcrypt.hash('dummy', 12);
+          return null;
         }
 
-        if (!await bcrypt.compare(credentials.password, user.passwordHash)) {
-          const failedAttempts = (user.failedLoginAttempts || 0) + 1;
-          const lockedUntil = failedAttempts >= 5
-            ? new Date(Date.now() + 15 * 60 * 1000)
+        // Check account lockout
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          console.warn(`[Auth] Account locked: ${credentials.email}`);
+          return null;
+        }
+
+        const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+
+        if (!isValid) {
+          const attempts = (user.failedLoginAttempts || 0) + 1;
+          const lockUntil = attempts >= MAX_LOGIN_ATTEMPTS
+            ? new Date(Date.now() + LOCKOUT_DURATION_MS)
             : null;
 
           await prisma.adminUser.update({
             where: { id: user.id },
-            data: { failedLoginAttempts: failedAttempts, lockedUntil },
+            data: { failedLoginAttempts: attempts, lockedUntil: lockUntil },
           });
 
-          if (failedAttempts >= 5) {
-            throw new Error('Account locked due to too many failed attempts.');
+          if (lockUntil) {
+            console.warn(`[Auth] Account locked after ${attempts} failed attempts: ${credentials.email}`);
           }
           return null;
         }
 
+        // Successful login — reset failed attempts
         await prisma.adminUser.update({
           where: { id: user.id },
-          data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
+          data: {
+            failedLoginAttempts: 0,
+            lockedUntil: null,
+            lastLoginAt: new Date(),
+          },
         });
 
         return {
@@ -113,7 +91,7 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-  session: { strategy: 'jwt' },
+  session: { strategy: 'jwt', maxAge: 8 * 60 * 60 }, // 8 hours
   pages: {
     signIn: '/admin/login',
   },

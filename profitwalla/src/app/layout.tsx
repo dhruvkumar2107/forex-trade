@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import SessionProvider from '@/components/SessionProvider';
 
 export const metadata: Metadata = {
   title: 'Profitwalla — Premium Copy Trading',
@@ -61,7 +62,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-terminal-bg candlestick-bg">
-        {children}
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

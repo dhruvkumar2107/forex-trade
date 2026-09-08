@@ -4,40 +4,37 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database...');
+  console.log('Seeding Profitwalla database...');
 
-  const adminPasswordHash = await bcrypt.hash('admin123', 12);
-  await prisma.adminUser.upsert({
-    where: { email: 'admin@profitwalla.com' },
-    update: {},
-    create: {
-      email: 'admin@profitwalla.com',
-      name: 'Admin',
-      passwordHash: adminPasswordHash,
-      role: 'admin',
-    },
-  });
-  console.log('Admin user: admin@profitwalla.com / admin123');
+  // Admin credentials from environment variables — NEVER use defaults in production
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@profitwalla.com';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const adminName = process.env.SEED_ADMIN_NAME || 'Admin';
 
-  const staffPasswordHash = await bcrypt.hash('staff123', 12);
-  await prisma.adminUser.upsert({
-    where: { email: 'staff@copytrading.local' },
-    update: {},
-    create: {
-      email: 'staff@copytrading.local',
-      name: 'Staff',
-      passwordHash: staffPasswordHash,
-      role: 'staff',
-    },
-  });
-  console.log('Staff user: staff@copytrading.local / staff123');
+  if (!adminPassword) {
+    console.warn('[Seed] SEED_ADMIN_PASSWORD not set. Skipping admin user creation.');
+    console.warn('[Seed] Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD environment variables.');
+  } else {
+    const adminPasswordHash = await bcrypt.hash(adminPassword, 12);
+    await prisma.adminUser.upsert({
+      where: { email: adminEmail },
+      update: {},
+      create: {
+        email: adminEmail,
+        name: adminName,
+        passwordHash: adminPasswordHash,
+        role: 'admin',
+      },
+    });
+    console.log(`[Seed] Admin user created: ${adminEmail}`);
+  }
 
-  console.log('Seed completed!');
+  console.log('[Seed] Completed!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('[Seed] Error:', e);
     process.exit(1);
   })
   .finally(async () => {

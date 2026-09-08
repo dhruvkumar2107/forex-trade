@@ -7,153 +7,874 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum CopyMode {
-  fixed_ratio
-  equity_proportional
-  fixed_lot
-}
+// ============================================================
+// ENUMS — CLIENT LIFECYCLE
+// ============================================================
 
-enum ConnectionHealth {
+enum CtClientStatus {
+  pending
+  under_review
+  approved
+  configured
+  connecting
+  connected
   healthy
-  degraded
+  copying
+  paused
+  risk_paused
   disconnected
   error
-}
-
-enum TradeStatus {
-  open
+  suspended
+  disabled
   closed
-  modified
-  error
 }
 
-model CopyTradingClient {
-  id                        String           @id @default(uuid())
-  clientRef                 String           @unique // ref to System 1's client ID
-  mt5AccountNumber          String
-  brokerServer              String
-  mt5InvestorPasswordEnc    String
-  mt5InvestorPasswordIv     String
-  metaApiAccountId          String?
-  metaApiConnectionId       String?
-  copyMode                  CopyMode         @default(equity_proportional)
-  lotRatio                  Float            @default(1.0)
-  maxDrawdownPercent        Float            @default(20.0)
-  symbolWhitelist           String[]         @default(["XAUUSD", "BTCUSD", "EURUSD", "GBPUSD", "AUDUSD"])
-  isActive                  Boolean          @default(true)
-  isPaused                  Boolean          @default(false)
-  connectionHealth          ConnectionHealth @default(disconnected)
-  lastTradeSyncAt           DateTime?
-  lastHealthCheckAt         DateTime?
-  equityAtStart             Float?
-  currentEquity             Float?
-  totalPnL                  Float            @default(0)
-  tradesCopied              Int              @default(0)
-  tradeEvents               TradeEvent[]
-  clientConfigs             ClientConfigHistory[]
-  alerts                    CopyTradeAlert[]
+// ============================================================
+// ENUMS — TRADE STATE MACHINE
+// ============================================================
 
-  createdAt                 DateTime         @default(now())
-  updatedAt                 DateTime         @updatedAt
+enum TradeState {
+  detected
+  validating
+  risk_check
+  queued
+  executing
+  broker_acknowledged
+  verified
+  reconciled
+  rejected
+  risk_blocked
+  broker_error
+  timeout
+  retrying
+  partial
+  mismatch
+  manual_review
+  failed
+}
 
-  @@index([clientRef])
-  @@unique([mt5AccountNumber])
-  @@index([connectionHealth])
+enum MasterPositionState {
+  open
+  modified
+  partial_closed
+  closed
+  error
+  unknown
+}
+
+// ============================================================
+// ENUMS — RISK
+// ============================================================
+
+enum DrawdownLevel {
+  normal
+  warning
+  high_risk
+  paused
+  emergency
+}
+
+// ============================================================
+// ENUMS — CONNECTION
+// ============================================================
+
+enum ConnectionHealth {
+  connected
+  degraded
+  disconnected
+  auth_failed
+  stale
+  reconnecting
+  error
+  unknown
+}
+
+// ============================================================
+// ENUMS — COPY
+// ============================================================
+
+enum CopyMode {
+  fixed_lot
+  fixed_ratio
+  equity_proportional
+}
+
+// ============================================================
+// ENUMS — RECONCILIATION
+// ============================================================
+
+enum ReconciliationStatus {
+  matched
+  missing
+  extra
+  volume_mismatch
+  price_mismatch
+  sl_mismatch
+  tp_mismatch
+  status_mismatch
+  unknown
+  manual_review
+}
+
+enum ReconciliationResolution {
+  pending
+  auto_resolved
+  manually_resolved
+  escalated
+  ignored
+}
+
+// ============================================================
+// ENUMS — INCIDENTS
+// ============================================================
+
+enum IncidentSeverity {
+  critical
+  high
+  medium
+  low
+}
+
+enum IncidentState {
+  detected
+  acknowledged
+  investigating
+  contained
+  resolved
+  closed
+}
+
+// ============================================================
+// ENUMS — STAFF
+// ============================================================
+
+enum StaffRole {
+  super_admin
+  admin
+  risk_manager
+  operations
+  staff
+  viewer
+}
+
+// ============================================================
+// ENUMS — ALERTS
+// ============================================================
+
+enum AlertSeverity {
+  critical
+  high
+  medium
+  low
+  info
+}
+
+// ============================================================
+// ENUMS — PROFITWALLA ONBOARDING (shared DB)
+// ============================================================
+
+enum ClientOnboardingStatus {
+  submitted
+  reviewing
+  approved
+  rejected
+  pushed
+}
+
+// ============================================================
+// MODEL — MASTER ACCOUNT
+// ============================================================
+
+model MasterAccount {
+  id               String  @id @default(uuid())
+  metaApiAccountId String  @unique
+  accountName      String
+  brokerName       String?
+  serverName       String?
+  isActive         Boolean @default(true)
+
+  // Live account state
+  currentEquity   Float?
+  currentBalance  Float?
+  currentMargin   Float?
+  freeMargin      Float?
+  leverage        Int?
+  openTradesCount Int    @default(0)
+  todayPnL        Float  @default(0)
+  totalPnL        Float  @default(0)
+
+  // Connection health
+  connectionState   String    @default("disconnected")
+  connectionHealth  String    @default("unknown")
+  lastHeartbeat     DateTime?
+  lastSuccessfulCmd DateTime?
+  lastError         String?
+  reconnectCount    Int       @default(0)
+  healthScore       Float     @default(0)
+
+  lastSyncAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  masterPositions MasterPosition[]
+  copyExecutions  CopyExecution[]
+
   @@index([isActive])
 }
 
-model TradeEvent {
-  id                  String       @id @default(uuid())
-  clientId            String
-  client              CopyTradingClient @relation(fields: [clientId], references: [id])
-  masterTradeId       String
-  symbol              String
-  type                String       // buy, sell
-  volume              Float
-  openPrice           Float
-  closePrice          Float?
-  sl                  Float?
-  tp                  Float?
-  profit              Float?
-  status              TradeStatus  @default(open)
-  executionLatencyMs  Int?
-  error               String?
-  metaApiTradeId      String?
+// ============================================================
+// MODEL — MASTER POSITION
+// ============================================================
 
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+model MasterPosition {
+  id              String        @id @default(uuid())
+  masterAccountId String
+  masterAccount   MasterAccount @relation(fields: [masterAccountId], references: [id])
+
+  metaApiPositionId String
+  symbol            String
+  direction         String // BUY, SELL
+  volume            Float
+  openPrice         Float
+  currentPrice      Float?
+  sl                Float?
+  tp                Float?
+  profit            Float?
+  swap              Float?
+  commission        Float?
+  openTime          DateTime?
+  lastUpdateTime    DateTime?
+  comment           String?
+
+  state          MasterPositionState @default(open)
+  lastDetectedAt DateTime            @default(now())
+
+  copyExecutions  CopyExecution[]
+  clientPositions ClientPosition[]
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  CopyTradingClient   CopyTradingClient? @relation(fields: [copyTradingClientId], references: [id])
+  copyTradingClientId String?
+
+  @@unique([masterAccountId, metaApiPositionId])
+  @@index([masterAccountId])
+  @@index([symbol])
+  @@index([state])
+}
+
+// ============================================================
+// MODEL — COPY TRADING CLIENT
+// ============================================================
+
+model CopyTradingClient {
+  id                     String  @id @default(uuid())
+  clientRef              String  @unique
+  mt5AccountNumber       String
+  brokerServer           String
+  mt5InvestorPasswordEnc String
+  mt5InvestorPasswordIv  String
+  metaApiAccountId       String?
+  metaApiConnectionId    String?
+
+  // Status
+  status             CtClientStatus  @default(pending)
+  previousStatus     CtClientStatus?
+  statusChangedAt    DateTime?       @default(now())
+  statusChangeReason String?
+  statusChangedBy    String?
+
+  // Copy configuration
+  copyMode       CopyMode @default(equity_proportional)
+  lotRatio       Float    @default(1.0)
+  fixedLotSize   Float?
+  minLot         Float    @default(0.01)
+  maxLot         Float    @default(10.0)
+  lotStep        Float    @default(0.01)
+  allowedSymbols String[] @default(["XAUUSD", "BTCUSD", "EURUSD", "GBPUSD", "AUDUSD"])
+
+  // Risk limits
+  maxDrawdownPercent       Float @default(20.0)
+  maxDailyLossPercent      Float @default(10.0)
+  maxAccountLossPercent    Float @default(30.0)
+  maxExposurePercent       Float @default(50.0)
+  maxOpenPositions         Int   @default(20)
+  maxSymbolExposurePercent Float @default(20.0)
+  maxLeverage              Float @default(100.0)
+  maxSlippagePoints        Float @default(5.0)
+  minEquity                Float @default(100.0)
+
+  // Drawdown tracking
+  equityAtStart          Float?
+  currentEquity          Float?
+  currentBalance         Float?
+  currentMargin          Float?
+  freeMargin             Float?
+  totalPnL               Float         @default(0)
+  dailyPnL               Float         @default(0)
+  drawdownLevel          DrawdownLevel @default(normal)
+  currentDrawdownPercent Float         @default(0)
+  peakEquity             Float?
+
+  // Connection health
+  connectionHealth      ConnectionHealth @default(unknown)
+  lastHeartbeat         DateTime?
+  lastSuccessfulCommand DateTime?
+  lastTradeSyncAt       DateTime?
+  lastHealthCheckAt     DateTime?
+  lastError             String?
+  reconnectCount        Int              @default(0)
+  healthScore           Float            @default(0)
+  latencyMs             Float?
+
+  // Counters
+  tradesCopied   Int @default(0)
+  tradesFailed   Int @default(0)
+  tradesRejected Int @default(0)
+
+  // Metadata
+  fullName     String?
+  startedBy    String?
+  approvedBy   String?
+  configuredBy String?
+
+  // Relations
+  tradeEvents        TradeEvent[]
+  masterPositions    MasterPosition[]
+  clientPositions    ClientPosition[]
+  copyExecutions     CopyExecution[]
+  riskDecisions      RiskDecision[]
+  reconciliationLogs ReconciliationLog[]
+  alerts             CopyTradeAlert[]
+  configHistory      ClientConfigHistory[]
+  incidents          Incident[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  RiskDecisionLog RiskDecisionLog[]
+
+  @@unique([mt5AccountNumber])
+  @@index([clientRef])
+  @@index([status])
+  @@index([connectionHealth])
+}
+
+// ============================================================
+// MODEL — TRADE EVENT (legacy compatibility)
+// ============================================================
+
+model TradeEvent {
+  id                 String            @id @default(uuid())
+  clientId           String
+  client             CopyTradingClient @relation(fields: [clientId], references: [id])
+  masterTradeId      String
+  symbol             String
+  type               String
+  volume             Float
+  openPrice          Float
+  closePrice         Float?
+  sl                 Float?
+  tp                 Float?
+  profit             Float?
+  status             TradeState        @default(detected)
+  executionLatencyMs Int?
+  signalTime         DateTime?
+  queueTime          DateTime?
+  executionStartTime DateTime?
+  brokerResponseTime DateTime?
+  verificationTime   DateTime?
+  completionTime     DateTime?
+  error              String?
+  metaApiTradeId     String?
+  retryCount         Int               @default(0)
+  lastRetryAt        DateTime?
+  idempotencyKey     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clientId])
   @@index([masterTradeId])
   @@index([status])
+  @@index([idempotencyKey])
   @@index([createdAt])
 }
 
-model ClientConfigHistory {
-  id            String   @id @default(uuid())
-  clientId      String
-  client        CopyTradingClient @relation(fields: [clientId], references: [id])
-  field         String   // e.g. "lotRatio", "maxDrawdownPercent", "isPaused"
-  oldValue      String
-  newValue      String
-  changedBy     String
+// ============================================================
+// MODEL — MASTER POSITION ↔ CLIENT POSITION MAPPING
+// ============================================================
 
-  createdAt     DateTime @default(now())
+model ClientPosition {
+  id               String            @id @default(uuid())
+  clientId         String
+  client           CopyTradingClient @relation(fields: [clientId], references: [id])
+  masterPositionId String
+  masterPosition   MasterPosition    @relation(fields: [masterPositionId], references: [id])
+  copyExecutionId  String?
+
+  metaApiPositionId String?
+  symbol            String
+  direction         String
+  volume            Float
+  openPrice         Float
+  sl                Float?
+  tp                Float?
+  profit            Float?
+  status            String  @default("open") // open, closed, error
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clientId])
+  @@index([masterPositionId])
+  @@index([status])
 }
 
-model CopyTradeAlert {
-  id            String   @id @default(uuid())
-  clientId      String
-  client        CopyTradingClient @relation(fields: [clientId], references: [id])
-  type          String   // connection_drop, high_slippage, execution_failure, drawdown_breach
-  severity      String   @default("warning") // info, warning, critical
-  message       String
-  resolved      Boolean  @default(false)
-  resolvedAt    DateTime?
+// ============================================================
+// MODEL — COPY EXECUTION (individual copy attempts)
+// ============================================================
 
-  createdAt     DateTime @default(now())
+model CopyExecution {
+  id               String            @id @default(uuid())
+  clientId         String
+  client           CopyTradingClient @relation(fields: [clientId], references: [id])
+  masterAccountId  String?
+  masterAccount    MasterAccount?    @relation(fields: [masterAccountId], references: [id])
+  masterPositionId String?
+  masterPosition   MasterPosition?   @relation(fields: [masterPositionId], references: [id])
+
+  // Trade details
+  symbol           String
+  masterSymbol     String?
+  direction        String
+  requestedVolume  Float
+  actualVolume     Float?
+  requestedPrice   Float?
+  actualEntryPrice Float?
+  masterEntryPrice Float?
+
+  // SL/TP
+  requestedSl Float?
+  requestedTp Float?
+  actualSl    Float?
+  actualTp    Float?
+
+  // State machine
+  state          TradeState  @default(detected)
+  previousState  TradeState?
+  stateChangedAt DateTime?   @default(now())
+
+  // Execution tracking
+  signalTime         DateTime
+  queueTime          DateTime?
+  executionStartTime DateTime?
+  brokerResponseTime DateTime?
+  brokerRequestId    String?
+  brokerResponse     String?
+  verificationTime   DateTime?
+  completionTime     DateTime?
+
+  // Latency
+  internalLatencyMs Int?
+  brokerLatencyMs   Int?
+  totalLatencyMs    Int?
+
+  // Slippage
+  slippagePoints    Float?
+  slippagePercent   Float?
+  slippageDirection String? // positive, negative
+
+  // Risk
+  riskDecision     RiskDecision?
+  riskRule         String?
+  riskThreshold    String?
+  riskCurrentValue String?
+  riskMessage      String?
+
+  // Retry
+  retryCount  Int       @default(0)
+  maxRetries  Int       @default(3)
+  lastRetryAt DateTime?
+  nextRetryAt DateTime?
+
+  // Error
+  error        String?
+  errorCode    String?
+  errorMessage String?
+
+  // Idempotency
+  idempotencyKey String? @unique
+
+  // Reconciliation
+  reconciled           Boolean   @default(false)
+  reconciledAt         DateTime?
+  reconciliationStatus String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([masterPositionId])
+  @@index([state])
+  @@index([idempotencyKey])
+  @@index([signalTime])
+  @@index([createdAt])
+}
+
+// ============================================================
+// MODEL — RISK DECISIONS
+// ============================================================
+
+model RiskDecisionLog {
+  id              String            @id @default(uuid())
+  clientId        String
+  client          CopyTradingClient @relation(fields: [clientId], references: [id])
+  copyExecutionId String?
+
+  decision      RiskDecision
+  rule          String
+  threshold     String
+  currentValue  String
+  message       String
+  masterTradeId String?
+  symbol        String?
+  volume        Float?
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([decision])
+  @@index([createdAt])
+}
+
+enum RiskDecision {
+  approved
+  rejected
+}
+
+// ============================================================
+// MODEL — SYMBOL MAPPING
+// ============================================================
+
+model SymbolMapping {
+  id            String  @id @default(uuid())
+  masterSymbol  String
+  clientSymbol  String
+  brokerPattern String // regex or glob pattern for broker matching
+  pipSize       Float   @default(0.0001)
+  pipValue      Float   @default(1.0)
+  contractSize  Float   @default(100000)
+  lotStep       Float   @default(0.01)
+  minLot        Float   @default(0.01)
+  maxLot        Float   @default(100.0)
+  spreadPoints  Float?
+  isActive      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([masterSymbol, clientSymbol, brokerPattern])
+  @@index([masterSymbol])
+  @@index([isActive])
+}
+
+// ============================================================
+// MODEL — RECONCILIATION
+// ============================================================
+
+model ReconciliationLog {
+  id              String            @id @default(uuid())
+  clientId        String
+  client          CopyTradingClient @relation(fields: [clientId], references: [id])
+  copyExecutionId String?
+
+  masterPositionId String?
+  clientPositionId String?
+
+  symbol            String
+  expectedDirection String?
+  actualDirection   String?
+  expectedVolume    Float?
+  actualVolume      Float?
+  expectedSl        Float?
+  actualSl          Float?
+  expectedTp        Float?
+  actualTp          Float?
+  expectedStatus    String?
+  actualStatus      String?
+
+  status          ReconciliationStatus
+  resolution      ReconciliationResolution @default(pending)
+  resolutionNotes String?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+
+  details   String?
+  checkedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([status])
+  @@index([resolution])
+  @@index([checkedAt])
+}
+
+// ============================================================
+// MODEL — INCIDENTS
+// ============================================================
+
+model Incident {
+  id          String           @id @default(uuid())
+  title       String
+  description String?
+  severity    IncidentSeverity
+  state       IncidentState    @default(detected)
+
+  affectedClients String[]
+  affectedSymbols String[]
+  triggerEvent    String?
+
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  investigatedBy String?
+  containedBy    String?
+  containedAt    DateTime?
+  resolvedBy     String?
+  resolvedAt     DateTime?
+  closedBy       String?
+  closedAt       DateTime?
+
+  resolutionNotes String?
+  rootCause       String?
+
+  clientId String?
+  client   CopyTradingClient? @relation(fields: [clientId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([severity])
+  @@index([state])
+  @@index([createdAt])
+}
+
+// ============================================================
+// MODEL — AUDIT LOG (copy trading operations)
+// ============================================================
+
+model AuditLog {
+  id            String  @id @default(uuid())
+  entityType    String // client, trade, risk, config, credential, system
+  entityId      String?
+  clientId      String?
+  action        String
+  performedBy   String
+  role          String?
+  details       String?
+  previousValue String?
+  newValue      String?
+  ipAddress     String?
+  userAgent     String?
+  requestId     String?
+  sessionId     String?
+
+  createdAt DateTime @default(now())
+  Client    Client?  @relation(fields: [clientId], references: [id])
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([clientId])
+  @@index([action])
+  @@index([performedBy])
+  @@index([createdAt])
+}
+
+// ============================================================
+// MODEL — COPY TRADE ALERTS
+// ============================================================
+
+model CopyTradeAlert {
+  id             String             @id @default(uuid())
+  clientId       String?
+  client         CopyTradingClient? @relation(fields: [clientId], references: [id])
+  type           String
+  severity       AlertSeverity      @default(medium)
+  title          String?
+  message        String
+  metadata       String? // JSON string for additional context
+  resolved       Boolean            @default(false)
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  acknowledged   Boolean            @default(false)
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+
+  createdAt DateTime @default(now())
 
   @@index([clientId])
   @@index([type])
+  @@index([severity])
   @@index([resolved])
+  @@index([createdAt])
 }
 
-model MasterAccount {
-  id                String   @id @default(uuid())
-  metaApiAccountId  String   @unique
-  accountName       String
-  isActive          Boolean  @default(true)
-  currentEquity     Float?
-  currentBalance    Float?
-  openTrades        Int      @default(0)
-  todayPnL          Float    @default(0)
-  totalPnL          Float    @default(0)
-  lastSyncAt        DateTime?
+// ============================================================
+// MODEL — CLIENT CONFIG HISTORY
+// ============================================================
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}
+model ClientConfigHistory {
+  id        String            @id @default(uuid())
+  clientId  String
+  client    CopyTradingClient @relation(fields: [clientId], references: [id])
+  field     String
+  oldValue  String
+  newValue  String
+  changedBy String
+  reason    String?
 
-model StaffUser {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  name          String?
-  passwordHash  String
-  role          String   @default("staff")
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-model ReconciliationLog {
-  id            String   @id @default(uuid())
-  clientId      String
-  matchStatus   String   // match, mismatch, error
-  details       String?
-  checkedAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([clientId])
-  @@index([checkedAt])
+  @@index([createdAt])
+}
+
+// ============================================================
+// MODEL — STAFF USER
+// ============================================================
+
+model StaffUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  role         StaffRole @default(staff)
+  permissions  String[] // granular permissions
+
+  isActive            Boolean   @default(true)
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([isActive])
+}
+
+// ============================================================
+// MODEL — KILL SWITCH
+// ============================================================
+
+model KillSwitch {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(false)
+
+  // Scope
+  scope          String  @default("global") // global, per_client, per_symbol, per_strategy
+  targetClientId String?
+  targetSymbol   String?
+  targetStrategy String?
+
+  activatedBy   String?
+  activatedAt   DateTime?
+  deactivatedBy String?
+  deactivatedAt DateTime?
+  reason        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([isActive])
+}
+
+// ============================================================
+// PROFITWALLA ONBOARDING MODELS (shared DB)
+// ============================================================
+
+model Client {
+  id                     String                 @id @default(uuid())
+  fullName               String
+  mobile                 String                 @unique
+  mobileVerified         Boolean                @default(false)
+  occupation             String?
+  business               String?
+  mt5AccountNumber       String
+  mt5InvestorPasswordEnc String
+  mt5InvestorPasswordIv  String
+  brokerServer           String
+  serverName             String?
+  startingEquity         Float
+  city                   String
+  state                  String
+  consentGiven           Boolean                @default(false)
+  consentTimestamp       DateTime?
+  status                 ClientOnboardingStatus @default(submitted)
+  adminNotes             String?
+  pushedToCopyTrading    Boolean                @default(false)
+  pushedAt               DateTime?
+  copyTradingClientId    String?
+  auditLogs              AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([mt5AccountNumber])
+  @@index([status])
+  @@index([mobile])
+}
+
+// ============================================================
+// MODEL — ONBOARDING AUDIT LOG
+// ============================================================
+
+model OnboardingAuditLog {
+  id          String  @id @default(uuid())
+  clientId    String
+  action      String
+  performedBy String
+  details     String?
+  ipAddress   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ============================================================
+// MODEL — ADMIN USER (Profitwalla)
+// ============================================================
+
+model AdminUser {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  name                String?
+  passwordHash        String
+  role                String    @default("admin")
+  twoFactorEnabled    Boolean   @default(false)
+  twoFactorSecret     String?
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// MODEL — RATE LIMIT
+// ============================================================
+
+model RateLimitEntry {
+  id        String   @id @default(uuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
 }

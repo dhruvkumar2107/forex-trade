@@ -3,6 +3,8 @@ import { verifyInterSystemAuth, apiSuccess, apiError, apiInternalError } from '@
 import { copyEngine } from '@/lib/copy-engine';
 import { pushClientSchema } from '@/lib/validation';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   // Verify inter-system auth
   if (!verifyInterSystemAuth(request)) {
