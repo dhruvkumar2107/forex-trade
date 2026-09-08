@@ -8,8 +8,8 @@ const footerColumns = [
       { label: 'Features', href: '/features' },
       { label: 'How It Works', href: '/how-it-works' },
       { label: 'Supported Brokers', href: '/brokers' },
-      { label: 'Risk Management', href: '/risk-management' },
-      { label: 'Account Monitoring', href: '/monitoring' },
+      { label: 'Risk Management', href: '/security' },
+      { label: 'Account Monitoring', href: '/#platform' },
     ],
   },
   {
@@ -17,32 +17,30 @@ const footerColumns = [
     links: [
       { label: 'About', href: '/about' },
       { label: 'Contact', href: '/contact' },
-      { label: 'Support', href: '/support' },
-      { label: 'Careers', href: '/careers' },
+      { label: 'Support', href: 'mailto:support@profitwalla.com' },
     ],
   },
   {
     title: 'Legal',
     links: [
       { label: 'Risk Disclosure', href: '/risk-disclosure' },
-      { label: 'Privacy Policy', href: '/privacy' },
-      { label: 'Terms of Service', href: '/terms' },
-      { label: 'Cookie Policy', href: '/cookies' },
+      { label: 'Privacy Policy', href: '/risk-disclosure' },
+      { label: 'Terms of Service', href: '/risk-disclosure' },
     ],
   },
   {
     title: 'Account',
     links: [
-      { label: 'Book Your Slot', href: '/book-slot' },
-      { label: 'Client Login', href: '/login/client' },
-      { label: 'Staff Login', href: '/login/staff' },
+      { label: 'Book Your Slot', href: '/book-now' },
+      { label: 'Client Login', href: '/login' },
+      { label: 'Staff Login', href: '/admin/login' },
     ],
   },
 ];
 
 const bottomLinks = [
-  { label: 'Privacy Policy', href: '/privacy' },
-  { label: 'Terms', href: '/terms' },
+  { label: 'Privacy Policy', href: '/risk-disclosure' },
+  { label: 'Terms', href: '/risk-disclosure' },
   { label: 'Risk Disclosure', href: '/risk-disclosure' },
 ];
 

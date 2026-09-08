@@ -187,7 +187,7 @@ export default function Navigation() {
             {/* Desktop CTAs */}
             <div className="hidden lg:flex lg:items-center lg:gap-3">
               <Link
-                href="/book-slot"
+                href="/book-now"
                 className="inline-flex items-center gap-2 rounded-lg bg-teal-500 px-4 py-2.5 text-sm font-medium text-black transition-all hover:bg-teal-400 hover:shadow-lg hover:shadow-teal-500/25 active:scale-[0.98]"
               >
                 Book Your Slot
@@ -332,7 +332,7 @@ export default function Navigation() {
 
             <div className="border-t border-white/5 p-4 space-y-3">
               <Link
-                href="/book-slot"
+                href="/book-now"
                 onClick={() => setMobileOpen(false)}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-3 text-sm font-medium text-black transition-all hover:bg-teal-400 active:scale-[0.98]"
               >
