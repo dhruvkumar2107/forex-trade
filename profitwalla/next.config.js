@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  poweredBy: false,
+  poweredByHeader: false,
   output: 'standalone',
   async headers() {
     return [

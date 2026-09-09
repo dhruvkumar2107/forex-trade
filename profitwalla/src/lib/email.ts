@@ -1,6 +1,12 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: Resend;
+function getResend(): Resend {
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 const FROM_EMAIL = 'Profitwalla <notifications@profitwalla.com>';
 const SUPPORT_EMAIL = 'support@profitwalla.com';
 
@@ -17,7 +23,7 @@ async function sendEmail({ to, subject, html }: EmailOptions): Promise<boolean> 
       return false;
     }
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to,
       subject,

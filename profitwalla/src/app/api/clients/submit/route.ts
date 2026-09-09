@@ -26,52 +26,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'You must accept the risk disclosure' }, { status: 400 });
     }
 
-    // Ensure tables exist
-    try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "Client" (
-          "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
-          "fullName" TEXT NOT NULL,
-          "mobile" TEXT NOT NULL,
-          "mobileVerified" BOOLEAN NOT NULL DEFAULT false,
-          "occupation" TEXT NOT NULL,
-          "mt5AccountNumber" TEXT NOT NULL,
-          "mt5InvestorPasswordEnc" TEXT NOT NULL,
-          "mt5InvestorPasswordIv" TEXT NOT NULL,
-          "brokerServer" TEXT NOT NULL,
-          "startingEquity" DOUBLE PRECISION NOT NULL,
-          "city" TEXT NOT NULL,
-          "state" TEXT NOT NULL,
-          "consentGiven" BOOLEAN NOT NULL DEFAULT false,
-          "consentTimestamp" TIMESTAMP(3),
-          "status" TEXT NOT NULL DEFAULT 'submitted',
-          "adminNotes" TEXT,
-          "pushedToCopyTrading" BOOLEAN NOT NULL DEFAULT false,
-          "pushedAt" TIMESTAMP(3),
-          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" TIMESTAMP(3) NOT NULL,
-          CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Client_mobile_key" ON "Client"("mobile");`);
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Client_mt5AccountNumber_key" ON "Client"("mt5AccountNumber");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "AuditLog" (
-          "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
-          "clientId" TEXT NOT NULL,
-          "action" TEXT NOT NULL,
-          "performedBy" TEXT NOT NULL,
-          "details" TEXT,
-          "ipAddress" TEXT,
-          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
-        );
-      `);
-    } catch (tableError) {
-      console.error('[Table Error]', tableError);
-    }
-
     // Encrypt password
     let encrypted: string, iv: string;
     try {
