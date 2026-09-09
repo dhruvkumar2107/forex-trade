@@ -40,5 +40,6 @@ USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV HOME=/home/nextjs
 
 CMD ["sh", "-c", "npx --yes prisma@5.22.0 db push && node server.js"]
