@@ -18,6 +18,9 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
+# Push database schema (runs as root during build)
+RUN npx prisma db push
+
 # Production image
 FROM base AS runner
 WORKDIR /app
@@ -40,6 +43,5 @@ USER nextjs
 EXPOSE 3001
 ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
-ENV HOME=/home/nextjs
 
-CMD ["sh", "-c", "npx --yes prisma@5.22.0 db push && node server.js"]
+CMD ["node", "server.js"]
