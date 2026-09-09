@@ -20,7 +20,6 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  ChevronDown,
   CheckCircle2,
 } from 'lucide-react';
 
@@ -69,25 +68,7 @@ const INDIAN_STATES = [
   'Puducherry', 'Chandigarh',
 ];
 
-const BROKER_SERVERS = [
-  'Exness-MT5Real',
-  'Exness-MT5Trial',
-  'ICMarketsSC-MT5',
-  'FPMarkets-MT5',
-  'Pepperstone-MT5',
-  'XMGlobal-MT5',
-  'Tickmill-MT5',
-  'RoboForex-MT5',
-  'HotForex-MT5',
-  'FXTM-MT5',
-  'OctaFX-MT5',
-  'Alpari-MT5',
-  'InstaForex-MT5',
-  'AdmiralMarkets-MT5',
-  'Coinbase-MT5',
-  'InteractiveBrokers-MT5',
-  'Other',
-];
+
 
 const INITIAL_FORM: FormData = {
   fullName: '',
@@ -181,7 +162,6 @@ export default function BookNowPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [customBroker, setCustomBroker] = useState(false);
 
   const updateField = useCallback(
     (field: keyof FormData, value: string | boolean | number) => {
@@ -601,63 +581,16 @@ export default function BookNowPage() {
                     </label>
                     <div className="relative">
                       <Server className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                      {customBroker ? (
-                        <input
-                          type="text"
-                          className="input pl-10 pr-10"
-                          placeholder="e.g. Exness-MT5Real"
-                          value={formData.brokerServer}
-                          onChange={(e) => updateField('brokerServer', e.target.value)}
-                          onBlur={() => handleBlur('brokerServer')}
-                          list="broker-servers"
-                          autoFocus
-                        />
-                      ) : (
-                        <select
-                          className="select pl-10"
-                          value={formData.brokerServer}
-                          onChange={(e) => {
-                            if (e.target.value === 'Other') {
-                              setCustomBroker(true);
-                              updateField('brokerServer', '');
-                            } else {
-                              updateField('brokerServer', e.target.value);
-                            }
-                          }}
-                          onBlur={() => handleBlur('brokerServer')}
-                        >
-                          <option value="">Select your broker server</option>
-                          {BROKER_SERVERS.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      {customBroker && (
-                        <button
-                          type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-xs transition-colors"
-                          onClick={() => {
-                            setCustomBroker(false);
-                            updateField('brokerServer', '');
-                          }}
-                        >
-                          Select from list
-                        </button>
-                      )}
+                      <input
+                        type="text"
+                        className="input pl-10"
+                        placeholder="e.g. Exness-MT5Real"
+                        value={formData.brokerServer}
+                        onChange={(e) => updateField('brokerServer', e.target.value)}
+                        onBlur={() => handleBlur('brokerServer')}
+                      />
                     </div>
                     <FieldError field="brokerServer" />
-                    {!customBroker && (
-                      <p className="text-gray-600 text-xs mt-1.5">
-                        Select from popular brokers or choose &quot;Other&quot; to type manually.
-                      </p>
-                    )}
-                    <datalist id="broker-servers">
-                      {BROKER_SERVERS.filter((s) => s !== 'Other').map((s) => (
-                        <option key={s} value={s} />
-                      ))}
-                    </datalist>
                   </div>
 
                   <div className={inputWrapperClass('startingEquity')}>
