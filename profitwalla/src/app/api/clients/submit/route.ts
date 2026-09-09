@@ -77,8 +77,35 @@ export async function POST(request: NextRequest) {
       success: true,
       data: { id: client.id, status: client.status },
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Submit Error]', error);
-    return NextResponse.json({ success: false, error: 'Server error. Please try again.' }, { status: 500 });
+
+    // Handle Prisma unique constraint violations (P2002)
+    if (error?.code === 'P2002') {
+      const targets = error?.meta?.target;
+      const targetStr = Array.isArray(targets) ? targets.join(', ') : String(targets || '');
+
+      if (targetStr.includes('mobile')) {
+        return NextResponse.json(
+          { success: false, error: 'An application with this mobile number already exists. Please log in to check your status.' },
+          { status: 409 }
+        );
+      }
+      if (targetStr.includes('mt5AccountNumber')) {
+        return NextResponse.json(
+          { success: false, error: 'This MT5 account number is already registered. Please verify your account details.' },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        { success: false, error: 'An application with these details already exists.' },
+        { status: 409 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, error: error?.message || 'Server error. Please try again.' },
+      { status: 500 }
+    );
   }
 }
