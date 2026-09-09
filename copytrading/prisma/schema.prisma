@@ -665,7 +665,7 @@ model Incident {
 
 model AuditLog {
   id            String  @id @default(uuid())
-  entityType    String // client, trade, risk, config, credential, system
+  entityType    String @default("system") // client, trade, risk, config, credential, system
   entityId      String?
   clientId      String?
   action        String
