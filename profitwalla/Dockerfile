@@ -1,4 +1,7 @@
-FROM node:20-alpine AS base
+FROM node:20 AS base
+
+# Install OpenSSL for Prisma
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies only
 FROM base AS deps
@@ -38,4 +41,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]
+CMD ["sh", "-c", "npx --yes prisma@5.22.0 db push && node server.js"]
