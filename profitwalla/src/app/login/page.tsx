@@ -23,7 +23,9 @@ export default function ClientLoginPage() {
     try {
       const res = await fetch(`/api/clients/status?mobile=${encodeURIComponent(fullMobile)}`);
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.data.token) {
+        // Store token in sessionStorage for dashboard access
+        sessionStorage.setItem('clientToken', data.data.token);
         router.push(`/dashboard?clientId=${data.data.id}`);
       } else {
         setError('No application found for this mobile number. Please apply first.');

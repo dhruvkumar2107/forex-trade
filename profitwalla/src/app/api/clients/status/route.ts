@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { apiSuccess, apiError, apiInternalError } from '@/lib/api';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { generateClientToken } from '@/lib/client-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,6 @@ export async function GET(request: NextRequest) {
       return apiError('Client ID or mobile number is required');
     }
 
-    // Only return minimal info for status checks
     const client = clientId
       ? await prisma.client.findUnique({
           where: { id: clientId },
@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
       return apiError('Application not found', 404);
     }
 
-    return apiSuccess(client);
+    // Generate auth token for dashboard access
+    const token = generateClientToken(client.id);
+
+    return apiSuccess({ ...client, token });
   } catch (error) {
     console.error('[Status Check Error]', error);
     return apiInternalError();

@@ -76,7 +76,14 @@ export default function DashboardPage() {
       return;
     }
 
-    fetch(`/api/clients/dashboard?clientId=${clientId}`)
+    // Get client token from sessionStorage (set during login)
+    const token = sessionStorage.getItem('clientToken');
+
+    const url = token
+      ? `/api/clients/dashboard?clientId=${clientId}&token=${token}`
+      : `/api/clients/dashboard?clientId=${clientId}`;
+
+    fetch(url)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {

@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { encrypt } from '@/lib/encryption';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { sendAdminNotification } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 10 submissions per minute per IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const rateLimit = await checkRateLimit(`submit:${ip}`, RATE_LIMITS.clientSubmit);
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ success: false, error: 'Too many requests. Please try again later.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const { fullName, mobile, occupation, mt5AccountNumber, mt5InvestorPassword, brokerServer, startingEquity, city, state, consentGiven } = body;
 
@@ -106,6 +115,9 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       // Audit log failure is non-critical
     }
+
+    // Notify admin of new submission (non-blocking)
+    sendAdminNotification('admin@profitwalla.com', client.fullName, 'New application submitted').catch(() => {});
 
     return NextResponse.json({
       success: true,

@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: profitwalla
+    runtime: image
+    image:
+      url: docker.io/library/node:20-alpine
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXTAUTH_SECRET
+        sync: false
+      - key: NEXTAUTH_URL
+        value: https://profitwalla.com
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: INTER_SYSTEM_API_SECRET
+        sync: false
+      - key: METAAPI_TOKEN
+        sync: false
+      - key: METAAPI_MASTER_ACCOUNT_ID
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: SEED_SECRET
+        sync: false
+      - key: COPYTRADING_API_URL
+        value: https://copytrading.profitwalla.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: CLIENT_TOKEN_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /api/health
+    autoDeploy: true
+    dockerfilePath: Dockerfile

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError, apiInternalError } from '@/lib/api';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { sendContactFormNotification } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,18 +27,8 @@ export async function POST(request: NextRequest) {
       return apiError('Invalid email address');
     }
 
-    // Log the contact form submission
-    console.log('[Contact Form]', {
-      name,
-      email,
-      subject,
-      message: message.substring(0, 200),
-      timestamp: new Date().toISOString(),
-      ip,
-    });
-
-    // In production, this would send an email via SendGrid/Resend/etc.
-    // For now, we log it and return success
+    // Send notification email to support
+    await sendContactFormNotification(name, email, subject, message);
 
     return apiSuccess({ message: 'Message received. We will get back to you within 24 hours.' });
   } catch (error) {

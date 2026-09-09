@@ -3,21 +3,31 @@ import { prisma } from '@/lib/prisma';
 import { apiSuccess, apiError, apiInternalError } from '@/lib/api';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { verifyClientToken } from '@/lib/client-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return apiError('Unauthorized', 401);
-    }
-
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get('clientId');
+    const token = searchParams.get('token');
 
     if (!clientId) {
       return apiError('Client ID is required');
+    }
+
+    // Allow access via admin session OR valid client token
+    const session = await getServerSession(authOptions);
+    const clientToken = token ? verifyClientToken(token) : null;
+
+    if (!session?.user && !clientToken?.valid) {
+      return apiError('Unauthorized', 401);
+    }
+
+    // If using client token, ensure it matches the requested clientId
+    if (clientToken?.valid && clientToken.clientId !== clientId) {
+      return apiError('Unauthorized', 401);
     }
 
     const client = await prisma.client.findUnique({
