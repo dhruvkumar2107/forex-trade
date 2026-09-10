@@ -1,4 +1,9 @@
-const META_API_BASE_URL = "https://api-mt.agiliumtrade.ai";
+const META_API_REGION = process.env.METAAPI_REGION || "new-york";
+const META_API_DOMAIN = "agiliumtrade.agiliumtrade.ai";
+const META_API_BASE_URL =
+  process.env.METAAPI_BASE_URL || `https://mt-client-api-v1.${META_API_REGION}.${META_API_DOMAIN}`;
+const META_API_PROVISIONING_URL =
+  process.env.METAAPI_PROVISIONING_URL || `https://mt-provisioning-api-v1.${META_API_DOMAIN}`;
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 1_000;
@@ -29,8 +34,8 @@ interface MetaApiPosition {
   openPrice: number;
   currentPrice: number;
   profit: number;
-  sl: number;
-  tp: number;
+  sl: number | null;
+  tp: number | null;
   openTime: string;
   swap: number;
   commission: number;
@@ -58,6 +63,22 @@ interface TradeParams {
   stopLoss?: number;
   takeProfit?: number;
   comment?: string;
+}
+
+const TRADE_SUCCESS_NUMERIC_CODES = new Set([0, 10008, 10009, 10010, 10025]);
+const TRADE_SUCCESS_STRING_CODES = new Set([
+  "ERR_NO_ERROR",
+  "TRADE_RETCODE_PLACED",
+  "TRADE_RETCODE_DONE",
+  "TRADE_RETCODE_DONE_PARTIAL",
+  "TRADE_RETCODE_NO_CHANGES",
+]);
+
+function isTradeSuccess(data: any): boolean {
+  if (!data) return false;
+  if (data.stringCode != null) return TRADE_SUCCESS_STRING_CODES.has(String(data.stringCode));
+  if (data.numericCode != null) return TRADE_SUCCESS_NUMERIC_CODES.has(Number(data.numericCode));
+  return false;
 }
 
 interface VolumeCalculation {
@@ -225,9 +246,9 @@ class MetaApiService {
 
   async getAccountInfo(accountId: string): Promise<MetaApiAccount | null> {
     try {
-      const data = await this.request<any>(`/users/current/accounts/${accountId}`);
+      const data = await this.request<any>(`/users/current/accounts/${accountId}/account-information`);
       const info: MetaApiAccount = {
-        id: data._id || accountId,
+        id: accountId,
         name: data.name || "",
         state: data.state || "",
         login: String(data.login || ""),
@@ -252,15 +273,15 @@ class MetaApiService {
   async getOpenPositions(accountId: string): Promise<MetaApiPosition[]> {
     const positions = await this.request<any[]>(`/users/current/accounts/${accountId}/positions`);
     return positions.map((p) => ({
-      id: p._id || "",
+      id: p._id != null ? String(p._id) : String(p.id || ""),
       type: p.type || "POSITION_TYPE_BUY",
       symbol: p.symbol || "",
       volume: Number(p.volume) || 0,
       openPrice: Number(p.openPrice) || 0,
       currentPrice: Number(p.currentPrice) || 0,
       profit: Number(p.profit) || 0,
-      sl: Number(p.stopLoss) || 0,
-      tp: Number(p.takeProfit) || 0,
+      sl: p.stopLoss != null ? Number(p.stopLoss) : null,
+      tp: p.takeProfit != null ? Number(p.takeProfit) : null,
       openTime: p.time || "",
       swap: Number(p.swap) || 0,
       commission: Number(p.commission) || 0,
@@ -276,7 +297,7 @@ class MetaApiService {
 
   async executeTrade(accountId: string, params: TradeParams): Promise<MetaApiTradeResult> {
     const body: Record<string, unknown> = {
-      action: params.action,
+      actionType: params.action,
       symbol: params.symbol,
       volume: params.volume,
     };
@@ -290,10 +311,20 @@ class MetaApiService {
         body: JSON.stringify(body),
       });
 
+      if (!isTradeSuccess(data)) {
+        const message = data.message || `Broker trade rejected (${data.stringCode || data.numericCode || "unknown"})`;
+        this.log("error", "Trade rejected by broker", { accountId, symbol: params.symbol, message });
+        return {
+          success: false,
+          error: message,
+          errorCode: data.numericCode,
+        };
+      }
+
       return {
         success: true,
         orderId: data.orderId,
-        tradeId: data.tradeId,
+        tradeId: data.tradeId || data.orderId,
       };
     } catch (err) {
       if (err instanceof MetaApiError) {
@@ -312,14 +343,27 @@ class MetaApiService {
 
   async closePosition(accountId: string, positionId: string): Promise<MetaApiTradeResult> {
     try {
-      const data = await this.request<any>(`/users/current/accounts/${accountId}/positions/${positionId}`, {
-        method: "DELETE",
+      const data = await this.request<any>(`/users/current/accounts/${accountId}/trade`, {
+        method: "POST",
+        body: JSON.stringify({
+          actionType: "POSITION_CLOSE_ID",
+          positionId,
+        }),
       });
+
+      if (!isTradeSuccess(data)) {
+        const message = data.message || `Broker close rejected (${data.stringCode || data.numericCode || "unknown"})`;
+        return {
+          success: false,
+          error: message,
+          errorCode: data.numericCode,
+        };
+      }
 
       return {
         success: true,
         orderId: data.orderId,
-        tradeId: data.tradeId,
+        tradeId: data.positionId || data.orderId,
       };
     } catch (err) {
       if (err instanceof MetaApiError) {
@@ -341,23 +385,35 @@ class MetaApiService {
     positionId: string,
     params: { stopLoss?: number; takeProfit?: number }
   ): Promise<MetaApiTradeResult> {
-    const body: Record<string, unknown> = {};
+    const body: Record<string, unknown> = {
+      actionType: "POSITION_MODIFY",
+      positionId,
+    };
     if (params.stopLoss !== undefined) body.stopLoss = params.stopLoss;
     if (params.takeProfit !== undefined) body.takeProfit = params.takeProfit;
 
     try {
       const data = await this.request<any>(
-        `/users/current/accounts/${accountId}/positions/${positionId}`,
+        `/users/current/accounts/${accountId}/trade`,
         {
-          method: "PUT",
+          method: "POST",
           body: JSON.stringify(body),
         }
       );
 
+      if (!isTradeSuccess(data)) {
+        const message = data.message || `Broker modify rejected (${data.stringCode || data.numericCode || "unknown"})`;
+        return {
+          success: false,
+          error: message,
+          errorCode: data.numericCode,
+        };
+      }
+
       return {
         success: true,
         orderId: data.orderId,
-        tradeId: data.tradeId,
+        tradeId: data.positionId || data.orderId,
       };
     } catch (err) {
       if (err instanceof MetaApiError) {
@@ -376,14 +432,56 @@ class MetaApiService {
 
   async getConnectionStatus(accountId: string): Promise<MetaApiConnectionStatus> {
     const startTime = Date.now();
-    const data = await this.request<any>(`/users/current/accounts/${accountId}/connection`);
+    const url = `${META_API_PROVISIONING_URL}/users/current/accounts/${accountId}`;
+
+    let state = "unknown";
+    try {
+      const data = await this.requestOnUrl<any>(url, `/users/current/accounts/${accountId}`);
+      const raw = String(data.connectionStatus || data.state || "").toLowerCase();
+      if (raw.startsWith("connected")) state = "connected";
+      else if (raw.startsWith("disconnected")) state = "disconnected";
+      else if (raw === "reconnecting") state = "reconnecting";
+      else if (raw === "degraded") state = "degraded";
+      else if (raw) state = raw;
+    } catch (err) {
+      state = "error";
+    }
+
     const latencyMs = Date.now() - startTime;
 
     return {
-      state: data.state || "unknown",
-      healthScore: Number(data.healthScore) || 0,
+      state,
+      healthScore: state === "connected" ? 100 : 0,
       latencyMs,
     };
+  }
+
+  private async requestOnUrl<T>(url: string, endpoint: string): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "auth-token": this.token,
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new MetaApiError(`HTTP ${response.status}`, response.status, undefined, endpoint);
+      }
+
+      return await response.json() as T;
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      if (err instanceof MetaApiError) throw err;
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   }
 
   calculateVolume(params: VolumeCalculation): number {

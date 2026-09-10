@@ -39,17 +39,27 @@ interface CopyClient {
 }
 
 interface SystemHealth {
-  engineRunning: boolean;
-  masterConnected: boolean;
-  totalClients: number;
-  activePositions: number;
-  todayPnL: number;
-  totalExposure: number;
-  totalDrawdown: number;
-  failedExecutions: number;
-  reconciliationExceptions: number;
-  connectionIssues: number;
-  riskAlerts: number;
+  engine: {
+    isRunning: boolean;
+    lastSync: string | null;
+    totalPolls: number;
+    totalErrors: number;
+    currentCycleId: string | null;
+  };
+  masterConnection: {
+    configured: boolean;
+    connected: boolean;
+  };
+  clients: {
+    total: number;
+    active: number;
+  };
+  metaApi: {
+    status: string;
+  };
+  database: {
+    status: string;
+  };
 }
 
 type SortField = keyof CopyClient;
@@ -118,16 +128,20 @@ export default function StaffDashboard() {
   const toggleEngine = useCallback(async () => {
     setEngineLoading(true);
     try {
-      const res = await fetch('/api/engine/start', { method: 'POST' });
+      const res = await fetch('/api/engine/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: systemHealth?.engine?.isRunning ? 'stop' : 'start' }),
+      });
       const data = await res.json();
-      setMessage(data.success ? (data.data?.running ? 'Engine started' : 'Engine stopped') : 'Engine toggle failed');
+      setMessage(data.success ? (data.data?.isRunning ? 'Engine started' : 'Engine stopped') : 'Engine toggle failed');
       fetchHealth();
     } catch {
       setMessage('Engine toggle failed');
     }
     setEngineLoading(false);
     setTimeout(() => setMessage(''), 3000);
-  }, [fetchHealth]);
+  }, [fetchHealth, systemHealth]);
 
   useEffect(() => {
     fetchClients();
@@ -175,11 +189,24 @@ export default function StaffDashboard() {
     total: clients.length,
     active: clients.filter((c) => ['copying', 'healthy', 'connected'].includes(c.status)).length,
     paused: clients.filter((c) => ['paused', 'risk_paused'].includes(c.status)).length,
-    healthy: clients.filter((c) => c.connectionHealth === 'healthy').length,
+    healthy: clients.filter((c) => c.connectionHealth === 'connected').length,
     degraded: clients.filter((c) => c.connectionHealth === 'degraded').length,
     disconnected: clients.filter((c) => c.connectionHealth === 'disconnected').length,
     totalTrades: clients.reduce((sum, c) => sum + c.tradesCopied, 0),
     totalPnL: clients.reduce((sum, c) => sum + c.totalPnL, 0),
+  }), [clients]);
+
+  const derivedStats = useMemo(() => ({
+    positions: clients.filter((c) => c.status === 'copying').length,
+    todayPnL: clients.reduce((sum, c) => sum + c.dailyPnL, 0),
+    exposure: clients.reduce((sum, c) => sum + (c.currentEquity ?? 0), 0),
+    drawdown: clients.length
+      ? clients.reduce((sum, c) => sum + c.currentDrawdownPercent, 0) / clients.length
+      : 0,
+    failed: clients.reduce((sum, c) => sum + c.tradesFailed, 0),
+    recon: 0,
+    conn: clients.filter((c) => c.connectionHealth !== 'connected').length,
+    risk: clients.filter((c) => c.drawdownLevel !== 'normal').length,
   }), [clients]);
 
   const selectClient = useCallback((client: CopyClient) => {
@@ -298,23 +325,23 @@ export default function StaffDashboard() {
                 onClick={toggleEngine}
                 disabled={engineLoading}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors ${
-                  systemHealth?.engineRunning
+                  systemHealth?.engine?.isRunning
                     ? 'border-accent-green/30 bg-accent-green/10 text-accent-green'
                     : 'border-accent-red/30 bg-accent-red/10 text-accent-red'
                 }`}
               >
-                {systemHealth?.engineRunning ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
-                {engineLoading ? '...' : systemHealth?.engineRunning ? 'Running' : 'Stopped'}
+                {systemHealth?.engine?.isRunning ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                {engineLoading ? '...' : systemHealth?.engine?.isRunning ? 'Running' : 'Stopped'}
               </button>
 
               <div className="h-5 w-px bg-terminal-border mx-1" />
 
               {/* Master Connection */}
               <StatusIndicator
-                icon={systemHealth?.masterConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                icon={systemHealth?.masterConnection?.connected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
                 label="Master"
-                value={systemHealth?.masterConnected ? 'Connected' : 'Disconnected'}
-                healthy={!!systemHealth?.masterConnected}
+                value={systemHealth?.masterConnection?.connected ? 'Connected' : 'Disconnected'}
+                healthy={!!systemHealth?.masterConnection?.connected}
               />
 
               <StatusIndicator
@@ -327,7 +354,7 @@ export default function StaffDashboard() {
               <StatusIndicator
                 icon={<BarChart3 className="w-3 h-3" />}
                 label="Positions"
-                value={String(systemHealth?.activePositions ?? 0)}
+                value={String(derivedStats.positions)}
                 healthy
               />
 
@@ -336,8 +363,8 @@ export default function StaffDashboard() {
               {/* P&L */}
               <div className="flex items-center gap-1.5 px-2">
                 <span className="text-gray-500">Today</span>
-                <span className={`financial-number ${(systemHealth?.todayPnL ?? 0) >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
-                  {(systemHealth?.todayPnL ?? 0) >= 0 ? '+' : ''}${(systemHealth?.todayPnL ?? 0).toLocaleString()}
+                <span className={`financial-number ${derivedStats.todayPnL >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
+                  {derivedStats.todayPnL >= 0 ? '+' : ''}${derivedStats.todayPnL.toLocaleString()}
                 </span>
               </div>
 
@@ -345,22 +372,22 @@ export default function StaffDashboard() {
 
               <StatusIndicator
                 label="Exposure"
-                value={`$${(systemHealth?.totalExposure ?? 0).toLocaleString()}`}
+                value={`$${derivedStats.exposure.toLocaleString()}`}
                 healthy
               />
 
               <StatusIndicator
                 label="Drawdown"
-                value={`${(systemHealth?.totalDrawdown ?? 0).toFixed(1)}%`}
-                healthy={(systemHealth?.totalDrawdown ?? 0) < 10}
+                value={`${derivedStats.drawdown.toFixed(1)}%`}
+                healthy={derivedStats.drawdown < 10}
               />
 
               <div className="h-5 w-px bg-terminal-border mx-1" />
 
-              <CountBadge label="Failed" count={systemHealth?.failedExecutions ?? 0} alert />
-              <CountBadge label="Recon" count={systemHealth?.reconciliationExceptions ?? 0} alert />
-              <CountBadge label="Conn" count={systemHealth?.connectionIssues ?? 0} alert />
-              <CountBadge label="Risk" count={systemHealth?.riskAlerts ?? 0} alert />
+              <CountBadge label="Failed" count={derivedStats.failed} alert />
+              <CountBadge label="Recon" count={derivedStats.recon} alert />
+              <CountBadge label="Conn" count={derivedStats.conn} alert />
+              <CountBadge label="Risk" count={derivedStats.risk} alert />
             </div>
           </div>
         </div>
@@ -417,7 +444,7 @@ export default function StaffDashboard() {
                 onChange={(e) => setConnectionFilter(e.target.value)}
               >
                 <option value="all">All Connection</option>
-                <option value="healthy">Healthy</option>
+                <option value="connected">Connected</option>
                 <option value="degraded">Degraded</option>
                 <option value="disconnected">Disconnected</option>
               </select>

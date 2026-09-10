@@ -352,6 +352,7 @@ model CopyTradingClient {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   RiskDecisionLog RiskDecisionLog[]
+  auditLogs       AuditLog[]
 
   @@unique([mt5AccountNumber])
   @@index([clientRef])
@@ -680,7 +681,7 @@ model AuditLog {
   sessionId     String?
 
   createdAt DateTime @default(now())
-  Client    Client?  @relation(fields: [clientId], references: [id])
+  client    CopyTradingClient? @relation(fields: [clientId], references: [id])
 
   @@index([entityType])
   @@index([entityId])
@@ -818,7 +819,6 @@ model Client {
   pushedToCopyTrading    Boolean                @default(false)
   pushedAt               DateTime?
   copyTradingClientId    String?
-  auditLogs              AuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const status = copyEngine.getStatus();
+  const status = await copyEngine.getStatus();
   return apiSuccess({
     isRunning: status.isRunning,
     lastSync: status.lastPollAt,
@@ -53,14 +53,14 @@ export async function POST(request: NextRequest) {
       await copyEngine.start();
       return apiSuccess({
         message: 'Copy engine started',
-        ...copyEngine.getStatus(),
+        ...(await copyEngine.getStatus()),
       });
     }
 
     copyEngine.stop();
     return apiSuccess({
       message: 'Copy engine stopped',
-      ...copyEngine.getStatus(),
+      ...(await copyEngine.getStatus()),
     });
   } catch (error) {
     console.error('[Engine Control Error]', error);

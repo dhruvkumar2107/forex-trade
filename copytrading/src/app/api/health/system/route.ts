@@ -15,7 +15,7 @@ export async function GET(_request: NextRequest) {
       return apiUnauthorized();
     }
 
-    const engineStatus = copyEngine.getStatus();
+    const engineStatus = await copyEngine.getStatus();
 
     const masterAccountId = process.env.METAAPI_MASTER_ACCOUNT_ID;
     let masterConnected = false;

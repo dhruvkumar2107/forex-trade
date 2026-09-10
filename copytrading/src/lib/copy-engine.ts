@@ -177,7 +177,16 @@ export class CopyEngine {
     log('INFO', 'CopyEngine', 'Engine stopped');
   }
 
-  getStatus(): EngineStatus {
+  async getStatus(): Promise<EngineStatus> {
+    let activeClients = 0;
+    try {
+      activeClients = (await this.getActiveClients()).length;
+    } catch (error) {
+      log('WARN', 'CopyEngine', 'Failed to compute active clients for status', {
+        error: (error as Error).message,
+      });
+    }
+
     return {
       isRunning: this.isRunning,
       pollIntervalMs: POLL_INTERVAL_MS,
@@ -188,7 +197,7 @@ export class CopyEngine {
       totalPositionChanges: this.totalPositionChanges,
       totalClientExecutions: this.totalClientExecutions,
       totalErrors: this.totalErrors,
-      activeClients: 0,
+      activeClients,
       currentCycleId: this.currentCycleId,
     };
   }
@@ -875,7 +884,7 @@ export class CopyEngine {
 
       const result = await metaApiService.closePosition(client.metaApiAccountId, cp.metaApiPositionId);
 
-      if (!result) {
+      if (!result.success) {
         this.totalErrors++;
         log('ERROR', 'CopyEngine', 'Trade close failed', {
           correlationId,
@@ -1236,9 +1245,11 @@ export class CopyEngine {
   }
 
   private numbersDiffer(a: number | null | undefined, b: number | null | undefined): boolean {
-    if (a == null && b == null) return false;
-    if (a == null || b == null) return true;
-    return Math.abs(a - b) > 0.00001;
+    const hasA = a != null && a !== 0;
+    const hasB = b != null && b !== 0;
+    if (!hasA && !hasB) return false;
+    if (!hasA || !hasB) return true;
+    return Math.abs(a! - b!) > 0.00001;
   }
 
   private async createAlert(clientId: string, type: string, severity: AlertSeverity, message: string) {
