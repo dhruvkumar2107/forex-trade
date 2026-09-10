@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User,
@@ -369,10 +370,20 @@ export default function BookNowPage() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="bg-accent-red/10 border border-accent-red/20 rounded-lg p-3 mb-6 text-accent-red text-sm flex items-center gap-2"
+                className="bg-accent-red/10 border border-accent-red/20 rounded-lg p-3 mb-6 text-accent-red text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2"
               >
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                {error}
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+                {error.includes('already exists') && (
+                  <Link
+                    href={`/login?mobile=${encodeURIComponent(formData.mobile)}`}
+                    className="underline text-xs font-semibold hover:text-white transition-colors shrink-0"
+                  >
+                    Go to Login &rarr;
+                  </Link>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
